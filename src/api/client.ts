@@ -24,8 +24,6 @@ apiClient.interceptors.request.use(
     const currentLang = localStorage.getItem('dhabayih_language') || 'ar';
     if (config.headers) {
       config.headers['Accept-Language'] = currentLang === 'ar' ? 'ar-SA,ar;q=0.9,en;q=0.8' : 'en-US,en;q=0.9,ar;q=0.8';
-      config.headers['X-Language'] = currentLang;
-      config.headers['lang'] = currentLang;
     }
 
     // Attach lang parameter to GET requests automatically
