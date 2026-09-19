@@ -10,7 +10,7 @@ export const StoryViewerModal: React.FC = () => {
   const [progress, setProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stories = activeStoryUser?.highlights || [];
   const currentIndex = activeStoryIndex !== null ? activeStoryIndex : 0;

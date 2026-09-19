@@ -50,6 +50,7 @@ export interface Product {
   isNew?: boolean;
   isAvailable?: boolean;
   stockQuantity?: number;
+  stock?: number;
   loyaltyPoints?: number;
   rating?: number;
   reviewsCount?: number;

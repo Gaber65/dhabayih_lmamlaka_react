@@ -29,6 +29,7 @@ const mapProduct = (item: any): Product => {
     isOnOffer,
     discountTag: item.discount_percentage ? `خصم ${item.discount_percentage}%` : (isOnOffer ? 'عرض خاص' : undefined),
     isAvailable: item.is_available ?? (item.stock_quantity > 0),
+    stockQuantity: item.stock_quantity ?? 0,
     stock: item.stock_quantity ?? 0,
     imageUrl: normalizeImageUrl(item.image_url || item.image),
   };
