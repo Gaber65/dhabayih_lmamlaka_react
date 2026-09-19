@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-primary: #881337;
+    --brand-secondary: #d97706;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+  }
+
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer utilities {
+  /* Luxury Button Utilities */
+  .btn-luxury-primary, .btn-cartoon-primary {
+    @apply relative bg-gradient-to-r from-brand-900 via-brand-800 to-brand-700 hover:from-brand-800 hover:to-brand-600 active:from-brand-950 active:to-brand-800 text-white font-extrabold rounded-2xl px-6 py-3 shadow-luxury-glow hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-luxury-gold, .btn-cartoon-gold {
+    @apply relative bg-gradient-to-r from-gold-600 via-gold-500 to-gold-400 hover:from-gold-500 hover:to-gold-300 text-charcoal-950 font-black rounded-2xl px-6 py-3 shadow-gold-glow hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-luxury-white, .btn-cartoon-white {
+    @apply relative bg-white hover:bg-slate-50 active:bg-slate-100 text-charcoal-900 font-bold border border-slate-200 rounded-2xl px-5 py-2.5 shadow-luxury-sm hover:shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-luxury-outline, .btn-cartoon-outline {
+    @apply relative bg-white/60 hover:bg-brand-50 active:bg-brand-100 text-brand-800 font-bold border border-brand-300 rounded-2xl px-5 py-2.5 shadow-luxury-sm hover:shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer select-none hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .card-luxury, .card-cartoon {
+    @apply bg-white rounded-2xl border border-slate-100/80 shadow-luxury hover:shadow-card-hover transition-all duration-300;
+  }
+
+  .badge-luxury, .badge-cartoon {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-tight shadow-sm;
+  }
+
+  /* Refined Modern Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
