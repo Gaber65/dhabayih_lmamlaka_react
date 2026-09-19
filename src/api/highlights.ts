@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import { ServerStrings } from './endpoints';
 import { JabinHighlight, HighlightStory } from '../types/home.types';
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 export interface CreateHighlightPayload {
   name: string;
@@ -8,14 +9,6 @@ export interface CreateHighlightPayload {
   mediaUrl: string;
   file?: File;
 }
-
-const normalizeUrl = (url?: string | null): string => {
-  if (!url) return '';
-  let cleanUrl = url.replace(/^http:\/\/(?:localhost|127\.0\.0\.1):8069/i, '');
-  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) return cleanUrl;
-  if (!cleanUrl.startsWith('/')) cleanUrl = `/${cleanUrl}`;
-  return cleanUrl;
-};
 
 export const highlightsApi = {
   getHighlights: async (): Promise<JabinHighlight[]> => {
@@ -29,13 +22,13 @@ export const highlightsApi = {
           id: j.user?.id || j.id || 0,
           name: j.user?.name || j.name || 'ذبائح المملكة',
           email: j.user?.email || '',
-          avatarUrl: normalizeUrl(j.user?.avatar_url || j.avatar_url || j.avatar),
+          avatarUrl: normalizeImageUrl(j.user?.avatar_url || j.avatar_url || j.avatar),
         },
         highlights: (j.highlights || j.stories || [j]).map((h: any) => ({
           id: h.id || Date.now(),
           name: h.name || h.title || 'يوميات الذبائح',
           mediaType: h.media_type || (h.media_url?.endsWith('.mp4') || h.media_url?.endsWith('.webm') ? 'video' : 'image'),
-          mediaUrl: normalizeUrl(h.media_url || h.image_url || h.video_url || h.image),
+          mediaUrl: normalizeImageUrl(h.media_url || h.image_url || h.video_url || h.image),
         })),
       }));
     } catch {
@@ -63,7 +56,7 @@ export const highlightsApi = {
         id: res.id || Date.now(),
         name: res.name || payload.name,
         mediaType: res.media_type || payload.mediaType,
-        mediaUrl: normalizeUrl(res.media_url || payload.mediaUrl),
+        mediaUrl: normalizeImageUrl(res.media_url || payload.mediaUrl),
       };
     } catch {
       // Fallback for optimistic display

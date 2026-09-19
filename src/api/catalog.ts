@@ -1,17 +1,7 @@
 import { apiClient } from './client';
 import { ServerStrings } from './endpoints';
 import { Category, Product } from '../types/product.types';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-const normalizeImageUrl = (url?: string | null): string => {
-  if (!url) return '';
-  // Convert local backend absolute urls to relative paths so Vite proxy routes them cleanly
-  let cleanUrl = url.replace(/^http:\/\/(?:localhost|127\.0\.0\.1):8069/i, '');
-  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) return cleanUrl;
-  if (!cleanUrl.startsWith('/')) cleanUrl = `/${cleanUrl}`;
-  return cleanUrl;
-};
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 
 

@@ -1,14 +1,7 @@
 import { apiClient } from './client';
 import { Offer } from '../types/home.types';
 import { Product } from '../types/product.types';
-
-const normalizeImageUrl = (url?: string | null): string => {
-  if (!url) return '';
-  let cleanUrl = url.replace(/^http:\/\/(?:localhost|127\.0\.0\.1):8069/i, '');
-  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) return cleanUrl;
-  if (!cleanUrl.startsWith('/')) cleanUrl = `/${cleanUrl}`;
-  return cleanUrl;
-};
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 const mapProduct = (item: any): Product => {
   const selling = Number(item.selling_price ?? item.price ?? 0);
