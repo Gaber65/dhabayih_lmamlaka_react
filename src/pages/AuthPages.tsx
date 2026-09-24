@@ -211,6 +211,8 @@ export const RegisterPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -222,12 +224,12 @@ export const RegisterPage: React.FC = () => {
     setErrorMessage(null);
     try {
       await authApi.register(email.trim());
+      setIsOtpModalOpen(true);
       addToast({
         type: 'info',
-        title: t('activation_link_sent', 'تم إرسال الرابط'),
-        message: t('activation_code_sent_desc', 'تم إرسال رمز التفعيل إلى بريدك الإلكتروني'),
+        title: t('otp_title', 'رمز التحقق'),
+        message: `${t('otp_sent_to', 'تم إرسال رمز التحقق إلى')} ${email}`,
       });
-      navigate('/login');
     } catch (err: any) {
       const rawMsg = err.response?.data?.message || '';
       let friendlyMsg = rawMsg;
@@ -244,6 +246,32 @@ export const RegisterPage: React.FC = () => {
         type: 'error',
         title: t('error', 'تنبيه'),
         message: friendlyMsg,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyRegisterOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) return;
+
+    setLoading(true);
+    try {
+      const res = await authApi.verifyRegisterOtp(email.trim(), otp.trim());
+      setAuth(res.user, res.accessToken, res.refreshToken);
+      setIsOtpModalOpen(false);
+      addToast({
+        type: 'success',
+        title: t('welcome', 'أهلاً بك!'),
+        message: t('register_success', 'تم تفعيل الحساب وتسجيل الدخول بنجاح'),
+      });
+      navigate('/home');
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: t('error', 'خطأ'),
+        message: err.response?.data?.message || t('otp_invalid', 'رمز التحقق غير صحيح أو منتهي الصلاحية'),
       });
     } finally {
       setLoading(false);
@@ -320,6 +348,41 @@ export const RegisterPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* OTP Modal */}
+      <CartoonModal
+        isOpen={isOtpModalOpen}
+        onClose={() => setIsOtpModalOpen(false)}
+        title={t('verify_otp_title', 'أدخل رمز التحقق')}
+        subtitle={`تم إرسال رمز التحقق إلى ${email}`}
+      >
+        <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+              {t('otp_label', 'رمز التحقق (OTP)')}
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="1234"
+                className="w-full text-center tracking-widest text-2xl font-mono font-black bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl py-3 text-slate-900 outline-none transition"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+          >
+            {loading ? t('verifying', 'جاري التحقق...') : t('verify_btn', 'تأكيد ودخول')}
+          </button>
+        </form>
+      </CartoonModal>
     </div>
   );
 };
