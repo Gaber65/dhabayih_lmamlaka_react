@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Mail } from 'lucide-react';
+import { Mail, AlertCircle } from 'lucide-react';
 import { CartoonModal } from '../components/common/CartoonModal';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../store/useAuthStore';
@@ -17,12 +17,14 @@ export const LoginPage: React.FC = () => {
   const [otp, setOtp] = useState('');
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
 
     setLoading(true);
+    setErrorMessage(null);
     try {
       await authApi.login(email.trim());
       setIsOtpModalOpen(true);
@@ -32,10 +34,23 @@ export const LoginPage: React.FC = () => {
         message: `${t('otp_sent_to', 'تم إرسال رمز التحقق إلى')} ${email}`,
       });
     } catch (err: any) {
+      const rawMsg = err.response?.data?.message || '';
+      let friendlyMsg = rawMsg;
+      if (rawMsg.toLowerCase().includes('not verified')) {
+        friendlyMsg = 'حسابك غير مفعّل بعد. يرجى إدخال رمز التحقق لتفعيل الحساب.';
+      } else if (rawMsg.toLowerCase().includes('not found')) {
+        friendlyMsg = 'لم يتم العثور على حساب بهذا البريد. اضغط على «إنشاء حساب جديد» بالأسفل.';
+      } else if (rawMsg.toLowerCase().includes('failed to send')) {
+        friendlyMsg = 'تعذر إرسال رمز التحقق حالياً، يرجى المحاولة مرة أخرى.';
+      } else if (!friendlyMsg) {
+        friendlyMsg = t('otp_send_failed', 'تعذر إرسال رمز التحقق، يرجى التأكد من البريد الإلكتروني');
+      }
+
+      setErrorMessage(friendlyMsg);
       addToast({
         type: 'error',
-        title: t('error', 'خطأ'),
-        message: err.response?.data?.message || t('otp_send_failed', 'تعذر إرسال رمز التحقق، يرجى التأكد من البريد الإلكتروني'),
+        title: t('error', 'تنبيه'),
+        message: friendlyMsg,
       });
     } finally {
       setLoading(false);
@@ -88,6 +103,24 @@ export const LoginPage: React.FC = () => {
             {t('login_desc', 'أدخل بريدك الإلكتروني لاستلام رمز التحقق لمرة واحدة')}
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-600 flex items-start gap-2.5 text-start animate-fade-in">
+            <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
+            <div className="flex-1 space-y-1.5">
+              <p className="leading-relaxed">{errorMessage}</p>
+              {errorMessage.includes('غير مفعّل') && (
+                <button
+                  type="button"
+                  onClick={() => setIsOtpModalOpen(true)}
+                  className="inline-block text-xs font-black text-brand-600 hover:text-brand-700 underline cursor-pointer"
+                >
+                  اضغط هنا لإدخال رمز التحقق وتفعيل الحساب الآن
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSendOtp} className="space-y-4 text-start">
           <div>
@@ -179,12 +212,14 @@ export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
 
     setLoading(true);
+    setErrorMessage(null);
     try {
       await authApi.register(email.trim());
       addToast({
@@ -194,10 +229,21 @@ export const RegisterPage: React.FC = () => {
       });
       navigate('/login');
     } catch (err: any) {
+      const rawMsg = err.response?.data?.message || '';
+      let friendlyMsg = rawMsg;
+      if (rawMsg.toLowerCase().includes('already registered')) {
+        friendlyMsg = 'هذا البريد مسجل بالفعل. يمكنك التوجه لتسجيل الدخول مباشرة.';
+      } else if (rawMsg.toLowerCase().includes('failed to send')) {
+        friendlyMsg = 'تعذر إرسال رمز التحقق حالياً، يرجى المحاولة مرة أخرى.';
+      } else if (!friendlyMsg) {
+        friendlyMsg = t('account_create_failed', 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
+      }
+
+      setErrorMessage(friendlyMsg);
       addToast({
         type: 'error',
-        title: t('error', 'خطأ'),
-        message: err.response?.data?.message || t('account_create_failed', 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً'),
+        title: t('error', 'تنبيه'),
+        message: friendlyMsg,
       });
     } finally {
       setLoading(false);
@@ -219,6 +265,13 @@ export const RegisterPage: React.FC = () => {
             {t('register_desc', 'انضم إلى ذبائح المملكة واستمتع بالخصومات وتتبع طلباتك')}
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-600 flex items-start gap-2.5 text-start animate-fade-in">
+            <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
+            <p className="flex-1 leading-relaxed">{errorMessage}</p>
+          </div>
+        )}
 
         <form onSubmit={handleRegister} className="space-y-4 text-start">
           <div>

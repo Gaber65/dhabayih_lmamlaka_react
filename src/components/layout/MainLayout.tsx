@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { CartoonHeader } from './CartoonHeader';
 import { CartoonBottomNav } from './CartoonBottomNav';
@@ -29,7 +29,6 @@ export const MainLayout: React.FC = () => {
       <CartoonFooter />
       <CartoonBottomNav />
       <CartDrawer />
-      <ToastContainer />
       <StoryViewerModal />
     </div>
   );
