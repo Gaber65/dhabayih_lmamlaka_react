@@ -207,6 +207,7 @@ export const LoginPage: React.FC = () => {
 export const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
   const { addToast } = useUIStore();
 
   const [email, setEmail] = useState('');
