@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 
 # Build with production environment variables
-ENV VITE_API_BASE_URL=http://72.62.52.33:8073
+ENV VITE_API_BASE_URL=https://api.zbayhalmmlkh.network
 RUN npm run build
 
 # Production Stage with Nginx Alpine

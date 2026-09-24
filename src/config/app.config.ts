@@ -7,7 +7,7 @@ export const APP_CONFIG = {
   /**
    * Base URL for backend API requests (Odoo 17 REST API)
    */
-  apiBaseUrl: (import.meta.env.VITE_API_BASE_URL || 'http://72.62.52.33:8073').replace(/\/+$/, ''),
+  apiBaseUrl: (import.meta.env.VITE_API_BASE_URL || 'https://api.zbayhalmmlkh.network').replace(/\/+$/, ''),
 
   /**
    * Application display names
