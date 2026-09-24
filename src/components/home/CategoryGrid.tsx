@@ -46,12 +46,11 @@ export const CategoryGrid: React.FC<{ categories: Category[] }> = ({ categories 
               >
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden mb-2 p-1.5 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <img
-                    src={cat.imageUrl}
+                    src={cat.imageUrl || '/images/categories/sheep_goats.jpg'}
                     alt={displayName}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80';
+                      (e.currentTarget as HTMLImageElement).src = '/images/categories/sheep_goats.jpg';
                     }}
                   />
                 </div>
