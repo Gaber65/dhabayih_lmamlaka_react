@@ -5,6 +5,7 @@ import { CartoonBottomNav } from './CartoonBottomNav';
 import { CartoonFooter } from './CartoonFooter';
 import { CartDrawer } from '../cart/CartDrawer';
 import { ToastContainer } from '../common/ToastContainer';
+import { FloatingWhatsAppButton } from '../common/FloatingWhatsAppButton';
 import { StoryViewerModal } from './StoryViewerModal';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
@@ -28,6 +29,7 @@ export const MainLayout: React.FC = () => {
 
       <CartoonFooter />
       <CartoonBottomNav />
+      <FloatingWhatsAppButton />
       <CartDrawer />
       <StoryViewerModal />
     </div>

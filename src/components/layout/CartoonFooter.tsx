@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Phone, Mail, MapPin } from 'lucide-react';
+import { settingsApi } from '../../api/settings';
 
 export const CartoonFooter: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === 'ar';
+  const [phones, setPhones] = useState('920000000 / 0500000000');
+
+  useEffect(() => {
+    settingsApi.getPublicSettings().then((res) => {
+      const wa = res?.whatsapp?.number || res?.whatsapp?.phone || '0500000000';
+      const sp = res?.support_phone || '920000000';
+      setPhones(`${sp} / ${wa}`);
+    }).catch(() => {});
+  }, []);
 
   return (
     <footer className="bg-slate-900 text-slate-300 pt-12 pb-24 md:pb-10 border-t border-slate-800 text-xs">
@@ -67,7 +77,7 @@ export const CartoonFooter: React.FC = () => {
             <div className="space-y-2.5 text-slate-400 font-medium">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-brand-400 flex-shrink-0" />
-                <span dir="ltr" className="font-mono text-slate-200">920000000 / 0500000000</span>
+                <span dir="ltr" className="font-mono text-slate-200">{phones}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />

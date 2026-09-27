@@ -26,6 +26,7 @@ import { useUIStore } from '../../store/useUIStore';
 import { SearchAutocomplete } from '../common/SearchAutocomplete';
 import { MegaMenu } from './MegaMenu';
 import { LocationPickerModal } from '../address/LocationPickerModal';
+import { settingsApi } from '../../api/settings';
 
 export const CartoonHeader: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -38,6 +39,15 @@ export const CartoonHeader: React.FC = () => {
   const { toggleLanguage } = useLanguageStore();
   const { activeAddress, openLocationModal, fetchAddresses } = useAddressStore();
   const { addToast } = useUIStore();
+  const [supportPhone, setSupportPhone] = useState('920000000');
+
+  React.useEffect(() => {
+    settingsApi.getPublicSettings().then((res) => {
+      if (res?.support_phone) {
+        setSupportPhone(res.support_phone);
+      }
+    }).catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -129,7 +139,7 @@ export const CartoonHeader: React.FC = () => {
             <div className="flex items-center gap-4 text-[11px]">
               <span className="flex items-center gap-1.5 text-slate-200">
                 <PhoneCall className="w-3.5 h-3.5 text-brand-400" />
-                <span>{t('customer_support_speed', 'خدمة العملاء والطلب السريع:')} <b className="text-white font-mono">920000000</b></span>
+                <span>{t('customer_support_speed', 'خدمة العملاء والطلب السريع:')} <b className="text-white font-mono">{supportPhone}</b></span>
               </span>
               <span className="text-slate-600">|</span>
               <span className="text-slate-400">{t('fast_delivery_riyadh', 'توصيل مبرد طازج يومياً لجميع أحياء الرياض')}</span>

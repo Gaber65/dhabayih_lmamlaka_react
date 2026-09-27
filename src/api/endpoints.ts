@@ -58,4 +58,8 @@ export const ServerStrings = {
   addresses: '/api/v1/addresses',
   addressById: (id: number) => `/api/v1/addresses/${id}`,
   setDefaultAddress: (id: number) => `/api/v1/addresses/${id}/set-default`,
+
+  // 9. Branches & Settings
+  branches: '/api/v1/branches',
+  publicSettings: '/api/v1/settings/public',
 };

@@ -20,6 +20,8 @@ import {
 import confetti from 'canvas-confetti';
 import { ordersApi } from '../api/orders';
 import { addressApi } from '../api/address';
+import { branchesApi } from '../api/branches';
+import { Branch } from '../types/branch.types';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAddressStore } from '../store/useAddressStore';
@@ -39,12 +41,28 @@ export const CheckoutPage: React.FC = () => {
   const { addToast } = useUIStore();
 
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [loadingBranches, setLoadingBranches] = useState(false);
   const [recipientName, setRecipientName] = useState(user?.name || '');
   const [recipientPhone, setRecipientPhone] = useState(user?.phone || '');
   const [streetAddress, setStreetAddress] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<string>('mada');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      setLoadingBranches(true);
+      const list = await branchesApi.getBranches();
+      setBranches(list);
+      if (list.length > 0) {
+        setSelectedBranchId(list[0].id);
+      }
+      setLoadingBranches(false);
+    };
+    loadBranches();
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -107,6 +125,17 @@ export const CheckoutPage: React.FC = () => {
       }
     }
 
+    if (deliveryType === 'pickup') {
+      if (branches.length > 0 && !selectedBranchId) {
+        addToast({
+          type: 'error',
+          title: t('missing_branch_title', 'يرجى اختيار الفرع'),
+          message: t('missing_branch_msg', 'يرجى تحديد فرع الاستلام للمتابعة'),
+        });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       let addressId = activeAddress?.id;
@@ -132,18 +161,20 @@ export const CheckoutPage: React.FC = () => {
       
       const apiResult = await ordersApi.checkout({
         deliveryType: deliveryType === 'pickup' ? 'pickup' : 'address',
-        addressId,
+        addressId: deliveryType === 'delivery' ? addressId : undefined,
+        branchId: deliveryType === 'pickup' ? (selectedBranchId || undefined) : undefined,
         paymentMethodId: isOnlinePayment ? 2 : 1, // 1: COD, 2: Online Card / MyFatoorah
         notes: notes.trim() || undefined,
         couponCode: couponCode || undefined,
       });
 
+      const selectedBranch = branches.find((b) => b.id === selectedBranchId);
       const districtName = deliveryType === 'pickup'
-        ? t('pickup_from_branch_title', 'استلام من المسلخ / الفرع الرئيسي')
+        ? (selectedBranch ? `${selectedBranch.name} (${selectedBranch.city})` : t('pickup_from_branch_title', 'استلام من المسلخ / الفرع الرئيسي'))
         : (activeAddress ? `${activeAddress.title} - ${activeAddress.city}` : 'الرياض');
 
       const streetName = deliveryType === 'pickup'
-        ? t('main_riyadh_branch', 'فرع الرياض الرئيسي')
+        ? (selectedBranch?.address || t('main_riyadh_branch', 'فرع الرياض الرئيسي'))
         : (streetAddress || activeAddress?.street || t('registered_address', 'العنوان المسجل'));
 
       const orderResult = {
@@ -369,6 +400,115 @@ export const CheckoutPage: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     {t('recipient_phone', 'رقم جوال التواصل')} *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    placeholder="05xxxxxxxx"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl p-2.5 text-xs font-mono font-medium outline-none transition"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2b. Pickup Branch Selector */}
+          {deliveryType === 'pickup' && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  <Store className="w-4 h-4 text-brand-500" />
+                  <span>{t('select_pickup_branch', 'اختر فرع الاستلام')}</span>
+                </h3>
+                <span className="text-[11px] text-brand-600 font-bold bg-brand-50 px-2 py-0.5 rounded-lg border border-brand-200">
+                  {branches.length} {t('branches_available', 'فروع متاحة')}
+                </span>
+              </div>
+
+              {loadingBranches ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  {t('loading_branches', 'جاري تحميل الفروع...')}
+                </div>
+              ) : branches.length === 0 ? (
+                <div className="p-4 border rounded-xl bg-amber-50 border-amber-200 text-xs text-amber-800">
+                  {t('no_branches_found', 'لا توجد فروع مسجلة حالياً. سيتم تجهيز طلبك في الفرع الرئيسي.')}
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {branches.map((b) => {
+                    const isSelected = selectedBranchId === b.id;
+                    return (
+                      <div
+                        key={b.id}
+                        onClick={() => setSelectedBranchId(b.id)}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-brand-50/80 border-brand-500 shadow-xs ring-1 ring-brand-400'
+                            : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                            isSelected ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            <Store className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-900">{b.name}</span>
+                              <span className="text-[10px] font-bold text-brand-700 bg-brand-100/70 px-1.5 py-0.2 rounded">
+                                {b.city}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                              <span>{b.address}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1">
+                              {b.phone && (
+                                <span className="font-mono">📞 {b.phone}</span>
+                              )}
+                              {b.openingHours && (
+                                <span>🕒 {b.openingHours}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <input
+                          type="radio"
+                          name="pickup_branch"
+                          checked={isSelected}
+                          onChange={() => setSelectedBranchId(b.id)}
+                          className="w-4 h-4 accent-brand-500 mt-1 cursor-pointer"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Recipient info for pickup */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t('pickup_recipient_name', 'اسم الشخص المستلم')} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder={t('full_name', 'الاسم الكامل')}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl p-2.5 text-xs font-medium outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t('pickup_recipient_phone', 'رقم جوال المستلم')} *
                   </label>
                   <input
                     type="tel"

@@ -1,4 +1,4 @@
-import { ProductOption } from './product.types';
+import { ProductOption, ProductSize } from './product.types';
 
 export interface CartLine {
   id: number;
@@ -8,6 +8,9 @@ export interface CartLine {
   productNameEn?: string;
   productImageUrl?: string;
   product?: any;
+  sizeId?: number;
+  sizeName?: string;
+  size?: ProductSize;
   weightLabel?: string;
   quantity: number;
   priceUnit: number;
@@ -31,6 +34,9 @@ export interface Cart {
   discountAmount?: number;
   couponCode?: string;
   deliveryFee: number;
+  deliveryType?: 'delivery' | 'pickup';
+  branchId?: number;
+  branchName?: string;
   vatAmount?: number;
   total: number;
   itemCount: number;
@@ -39,6 +45,8 @@ export interface Cart {
 export interface AddToCartPayload {
   productId: number;
   quantity: number;
+  sizeId?: number;
+  sizeName?: string;
   weightOptionId?: number;
   weightLabel?: string;
   cuttingOptionId?: number;

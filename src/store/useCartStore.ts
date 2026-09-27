@@ -135,12 +135,14 @@ export const useCartStore = create<CartStore>()(
           const pkgOpts = productData?.packagingOptions?.filter((p: any) => payload.packagingIds?.includes(p.id)) || [];
           const excOpts = productData?.excludedParts?.filter((e: any) => payload.excludedPartIds?.includes(e.id)) || [];
 
-          const existingIndex = currentLines.findIndex(
-            (l) => l.productId === payload.productId && l.cuttingOption?.id === payload.cuttingOptionId
-          );
-
-          const unitPrice = productData?.price || 0;
+          const sizeObj = productData?.sizes?.find((s: any) => s.id === payload.sizeId);
+          const unitPrice = sizeObj ? sizeObj.price : (productData?.price || 0);
+          const sizeName = sizeObj?.name || payload.sizeName;
           const qty = payload.quantity || 1;
+
+          const existingIndex = currentLines.findIndex(
+            (l) => l.productId === payload.productId && l.sizeId === payload.sizeId && l.cuttingOption?.id === payload.cuttingOptionId
+          );
 
           if (existingIndex >= 0) {
             const line = currentLines[existingIndex];
@@ -152,14 +154,19 @@ export const useCartStore = create<CartStore>()(
               notes: payload.notes || line.notes,
             };
           } else {
+            const baseDisplayName = productData?.nameAr || productData?.name || 'ذبيحة طازجة';
+            const fullDisplayName = sizeName ? `${baseDisplayName} (${sizeName})` : baseDisplayName;
             const newLine: CartLine = {
               id: Date.now(),
               productId: payload.productId,
-              productName: productData?.name || 'ذبيحة طازجة',
-              productNameAr: productData?.nameAr || productData?.name || 'ذبيحة طازجة',
+              productName: fullDisplayName,
+              productNameAr: fullDisplayName,
               productNameEn: productData?.nameEn || productData?.name || 'Fresh Sacrifice',
               productImageUrl: productData?.imageUrl || '',
               product: productData,
+              sizeId: payload.sizeId,
+              sizeName: sizeName,
+              size: sizeObj,
               weightLabel: payload.weightLabel || productData?.weight || '',
               quantity: qty,
               priceUnit: unitPrice,

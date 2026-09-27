@@ -61,6 +61,26 @@ export interface Product {
   cuttingOptions?: ProductOption[];
   packagingOptions?: ProductOption[];
   excludedParts?: ProductOption[];
+  sizes?: ProductSize[];
+  hasSizes?: boolean;
+  has_sizes?: boolean;
+  calories?: number;
+}
+
+export interface ProductSize {
+  id: number;
+  name: string;
+  subTitle?: string;
+  sub_title?: string;
+  price: number;
+  calories?: number;
+  loyaltyPoints?: number;
+  loyalty_points?: number;
+  pointsPrice?: number;
+  points_price?: number;
+  isDefault?: boolean;
+  is_default?: boolean;
+  sequence?: number;
 }
 
 export interface Category {

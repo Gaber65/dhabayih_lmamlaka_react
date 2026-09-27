@@ -21,6 +21,16 @@ const mapCart = (data: any): Cart => {
         imageUrl: l.product_image_url || '',
       },
       weightLabel: l.weight_label || '',
+      sizeId: l.size?.id || l.size_id || undefined,
+      sizeName: l.size?.name || l.size_name || undefined,
+      size: l.size ? {
+        id: Number(l.size.id),
+        name: l.size.name,
+        subTitle: l.size.sub_title,
+        price: Number(l.size.price),
+        calories: l.size.calories,
+        loyaltyPoints: l.size.loyalty_points,
+      } : undefined,
       quantity: Number(l.quantity || 1),
       priceUnit: Number(l.price_unit || 0),
       discountPercent: Number(l.discount_percent || 0),
@@ -34,6 +44,9 @@ const mapCart = (data: any): Cart => {
     })),
     subtotal: Number(cartData.subtotal || 0),
     deliveryFee: Number(cartData.delivery_fee || 0),
+    deliveryType: cartData.delivery_type || 'delivery',
+    branchId: cartData.branch_id ? Number(cartData.branch_id) : undefined,
+    branchName: cartData.branch_name || undefined,
     total: Number(cartData.grand_total || cartData.total || 0),
     itemCount: rawLines.length,
   };
@@ -49,6 +62,7 @@ export const cartApi = {
     const body = {
       product_id: payload.productId,
       quantity: payload.quantity,
+      ...(payload.sizeId ? { size_id: payload.sizeId } : {}),
       ...(payload.cuttingOptionId ? { cutting_option_id: payload.cuttingOptionId } : {}),
       ...(payload.packagingIds && payload.packagingIds.length > 0 ? { packaging_ids: payload.packagingIds } : {}),
       ...(payload.excludedPartIds && payload.excludedPartIds.length > 0 ? { excluded_part_ids: payload.excludedPartIds } : {}),
@@ -62,12 +76,21 @@ export const cartApi = {
     const body = {
       product_id: payload.productId,
       quantity: payload.quantity,
+      ...(payload.sizeId ? { size_id: payload.sizeId } : {}),
       ...(payload.cuttingOptionId ? { cutting_option_id: payload.cuttingOptionId } : {}),
       ...(payload.packagingIds ? { packaging_ids: payload.packagingIds } : {}),
       ...(payload.excludedPartIds ? { excluded_part_ids: payload.excludedPartIds } : {}),
       ...(payload.notes ? { notes: payload.notes } : {}),
     };
     const response = await apiClient.put(ServerStrings.updateCart, body);
+    return mapCart(response.data);
+  },
+
+  updateDelivery: async (deliveryType: 'delivery' | 'pickup', branchId?: number): Promise<Cart> => {
+    const response = await apiClient.post('/api/v1/cart/delivery', {
+      delivery_type: deliveryType,
+      branch_id: branchId || null,
+    });
     return mapCart(response.data);
   },
 

@@ -10,6 +10,7 @@ import {
   Zap,
   ShoppingBag,
   CheckCircle2,
+  Star,
 } from 'lucide-react';
 import { catalogApi } from '../api/catalog';
 import { Product } from '../types/product.types';
@@ -44,6 +45,7 @@ export const ProductDetailsPage: React.FC = () => {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [selectedSizeId, setSelectedSizeId] = useState<number | null>(null);
   const [selectedCuttingId, setSelectedCuttingId] = useState<number | null>(null);
   const [selectedPackagingIds, setSelectedPackagingIds] = useState<number[]>([]);
   const [selectedExcludedIds, setSelectedExcludedIds] = useState<number[]>([]);
@@ -65,6 +67,11 @@ export const ProductDetailsPage: React.FC = () => {
         ]);
         setProduct(p);
         setRelatedProducts(allProds.filter((item) => item.id !== Number(id)).slice(0, 4));
+
+        if (p.sizes && p.sizes.length > 0) {
+          const defaultSize = p.sizes.find((s) => s.isDefault || s.is_default) || p.sizes[0];
+          setSelectedSizeId(defaultSize.id);
+        }
 
         if (p.cuttingOptions && p.cuttingOptions.length > 0) {
           setSelectedCuttingId(p.cuttingOptions[0].id);
@@ -129,9 +136,13 @@ export const ProductDetailsPage: React.FC = () => {
     );
   };
 
-  const basePrice = product.price;
+  const selectedSize = product.sizes?.find((s) => s.id === selectedSizeId);
+  const basePrice = selectedSize ? selectedSize.price : product.price;
   const originalPrice = product.originalPrice;
   const totalPrice = basePrice * quantity;
+  const calories = selectedSize?.calories || product.calories || 243;
+  const loyaltyPoints = selectedSize?.loyaltyPoints || selectedSize?.loyalty_points || Math.round(basePrice * 0.5);
+  const pointsPrice = selectedSize?.pointsPrice || selectedSize?.points_price || Math.round(basePrice * 4);
 
   const handleAddToCart = async (goToCheckout: boolean = false) => {
 
@@ -150,7 +161,9 @@ export const ProductDetailsPage: React.FC = () => {
       await addToCart({
         productId: product.id,
         quantity,
-        weightLabel: product.weight || undefined,
+        sizeId: selectedSizeId || undefined,
+        sizeName: selectedSize?.name,
+        weightLabel: selectedSize?.name || product.weight || undefined,
         cuttingOptionId: selectedCuttingId || undefined,
         packagingIds: selectedPackagingIds.length > 0 ? selectedPackagingIds : undefined,
         excludedPartIds: selectedExcludedIds.length > 0 ? selectedExcludedIds : undefined,
@@ -278,23 +291,128 @@ export const ProductDetailsPage: React.FC = () => {
                   t('product_default_desc', 'ذبائح ومواشي بلدية طازجة تُرعى في مزارع معتمدة، تُذبح يومياً حسب الطلب مع خيارات تقطيع وتغليف مخصصة.')}
               </p>
 
-              {/* Price Row */}
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-black text-slate-900 font-mono">
-                      {basePrice.toLocaleString('en-US')}
-                    </span>
-                    <span className="text-sm font-bold text-slate-600">{t('sar', 'ر.س')}</span>
+              {/* Screenshot Badges: Price in SAR & Points */}
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-brand-700 font-black text-xl md:text-2xl font-mono">
+                    <ShoppingBag className="w-5 h-5 text-brand-600" />
+                    <span>{basePrice.toLocaleString('en-US')}</span>
+                    <span className="text-xs font-bold font-sans">ر.س</span>
                   </div>
-                  {originalPrice && originalPrice > basePrice && (
-                    <span className="text-xs text-slate-400 line-through font-mono block">
-                      {originalPrice.toLocaleString('en-US')} {t('sar', 'ر.س')}
-                    </span>
-                  )}
+                  <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
+                    {t('price_vat_inclusive', 'السعر شامل للضريبة')}
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-amber-600 font-black text-xl md:text-2xl font-mono">
+                    <Star className="w-5 h-5 text-amber-500 fill-amber-400" />
+                    <span>{pointsPrice.toLocaleString('en-US')}</span>
+                    <span className="text-xs font-bold font-sans">{t('points', 'نقطة')}</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
+                    {t('points_price_label', 'سعر المنتج بالنقاط')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Calories Row */}
+              <div className="mt-3 bg-rose-50/40 border border-rose-100 rounded-2xl p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black text-slate-800 font-mono">
+                    {calories} / {t('calories_unit', 'السعرات الحرارية')}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 block">
+                    {t('calories_label', 'السعرات الحرارية')}
+                  </span>
+                </div>
+                <div className="w-8 h-8 rounded-xl bg-rose-100/80 flex items-center justify-center text-rose-600">
+                  <Zap className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Loyalty Reward Row */}
+              <div className="mt-3 bg-purple-50/40 border border-purple-100 rounded-2xl p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black text-purple-900 block">
+                    {t('loyalty_points_title', 'نقاط الولاء')}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-600">
+                    {t('earn_points_prefix', 'اكسب')}{' '}
+                    <span className="text-purple-700 font-mono font-black">{loyaltyPoints.toFixed(2)}</span>{' '}
+                    {t('earn_points_suffix', 'نقطة ولاء مع هذا الطلب')}
+                  </span>
+                </div>
+                <div className="w-8 h-8 rounded-xl bg-purple-100/80 flex items-center justify-center text-purple-600">
+                  <Star className="w-4 h-4" />
                 </div>
               </div>
             </div>
+
+            {/* Carcass Sizes (الحجم) Section matching screenshot */}
+            {product.sizes && product.sizes.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-900">
+                    {t('carcass_size', 'الحجم')}
+                  </h3>
+                  {selectedSize && (
+                    <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-0.5 rounded-full">
+                      {selectedSize.name}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {product.sizes.map((size) => {
+                    const isSelected = size.id === selectedSizeId;
+                    return (
+                      <div
+                        key={size.id}
+                        onClick={() => setSelectedSizeId(size.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-brand-50/40 border-brand-500 shadow-xs'
+                            : 'bg-white border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Custom Radio Circle */}
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                              isSelected
+                                ? 'border-brand-600 bg-white'
+                                : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-brand-600" />
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-xs md:text-sm font-black text-slate-800 block">
+                              {size.name}
+                            </span>
+                            {size.subTitle && (
+                              <span className="text-[11px] font-bold text-amber-600 block">
+                                {size.subTitle}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xs md:text-sm font-black text-slate-900 font-mono">
+                            {size.price.toLocaleString('en-US')}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-500 mr-1">ر.س</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 1. Real Product Weight Specs */}
             {product.weight && (

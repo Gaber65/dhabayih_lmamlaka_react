@@ -1,11 +1,40 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Building2, Utensils, HeartHandshake, PhoneCall, ChevronLeft, ChevronRight } from 'lucide-react';
+import { settingsApi } from '../../api/settings';
 
 export const B2BSection: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === 'ar';
+
+  const [settings, setSettings] = useState<{
+    whatsappNumber: string;
+    supportPhone: string;
+    chatUrl: string;
+  }>({
+    whatsappNumber: '0500000000',
+    supportPhone: '920000000',
+    chatUrl: 'https://wa.me/966500000000',
+  });
+
+  useEffect(() => {
+    settingsApi.getPublicSettings().then((res) => {
+      if (res?.whatsapp) {
+        const rawNum = res.whatsapp.number || res.whatsapp.phone || '0500000000';
+        const cleanDigits = rawNum.replace(/\D/g, '');
+        const finalNum = cleanDigits.startsWith('05') ? `966${cleanDigits.slice(1)}` : cleanDigits;
+        const b2bMsg = encodeURIComponent('مرحباً، أود طلب تسعيرة لقطاع الأعمال والمناسبات (B2B)');
+        const chatUrl = `https://wa.me/${finalNum}?text=${b2bMsg}`;
+
+        setSettings({
+          whatsappNumber: rawNum,
+          supportPhone: res.support_phone || '920000000',
+          chatUrl,
+        });
+      }
+    }).catch(() => {});
+  }, []);
 
   const services = [
     {
@@ -71,12 +100,12 @@ export const B2BSection: React.FC = () => {
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-700 font-mono text-lg font-black text-amber-400" dir="ltr">
-                0500000000 / 920000000
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-700 font-mono text-base sm:text-lg font-black text-amber-400" dir="ltr">
+                {settings.whatsappNumber} / {settings.supportPhone}
               </div>
 
               <a
-                href="https://wa.me/966500000000"
+                href={settings.chatUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow"

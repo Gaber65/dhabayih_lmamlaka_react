@@ -49,6 +49,25 @@ const mapProduct = (item: any): Product => {
     cuttingOptions: Array.isArray(item.cutting_options) ? item.cutting_options : [],
     packagingOptions: Array.isArray(item.packaging_options) ? item.packaging_options : [],
     excludedParts: Array.isArray(item.excluded_parts) ? item.excluded_parts : [],
+    sizes: Array.isArray(item.sizes)
+      ? item.sizes.map((s: any) => ({
+          id: Number(s.id),
+          name: s.name || '',
+          subTitle: s.sub_title || s.subTitle || '',
+          sub_title: s.sub_title || s.subTitle || '',
+          price: Number(s.price || 0),
+          calories: s.calories ? Number(s.calories) : 243,
+          loyaltyPoints: Number(s.loyalty_points || s.loyaltyPoints || 0),
+          loyalty_points: Number(s.loyalty_points || s.loyaltyPoints || 0),
+          pointsPrice: Number(s.points_price || s.pointsPrice || 0),
+          points_price: Number(s.points_price || s.pointsPrice || 0),
+          isDefault: Boolean(s.is_default || s.isDefault),
+          is_default: Boolean(s.is_default || s.isDefault),
+          sequence: Number(s.sequence || 10),
+        }))
+      : [],
+    hasSizes: Boolean(item.has_sizes || item.hasSizes || (item.sizes && item.sizes.length > 0)),
+    calories: item.calories ? Number(item.calories) : 243,
   };
 };
 

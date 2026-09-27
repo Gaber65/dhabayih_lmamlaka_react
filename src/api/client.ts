@@ -70,6 +70,9 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('dhabayih_access_token');
         localStorage.removeItem('dhabayih_refresh_token');
         localStorage.removeItem('dhabayih_user');
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -123,6 +126,9 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('dhabayih_access_token');
         localStorage.removeItem('dhabayih_refresh_token');
         localStorage.removeItem('dhabayih_user');
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
