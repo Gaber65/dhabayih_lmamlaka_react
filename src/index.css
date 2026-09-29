@@ -109,3 +109,26 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-invoice,
+  #printable-invoice * {
+    visibility: visible;
+  }
+  #printable-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 10mm 15mm;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

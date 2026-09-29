@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { ServerStrings } from './endpoints';
+import { APP_CONFIG } from '../config';
 import {
   CheckoutPayload,
   CheckoutResult,
@@ -142,7 +143,7 @@ export const ordersApi = {
     }));
   },
 
-  initiatePayment: async (orderId: number, callbackUrl?: string, errorUrl?: string, paymentMethodCode: string = 'myfatoorah'): Promise<{ paymentUrl: string; invoiceId: string }> => {
+  initiatePayment: async (orderId: number, callbackUrl?: string, errorUrl?: string, paymentMethodCode: string = 'moyasar'): Promise<{ paymentUrl: string; invoiceId: string }> => {
     const response = await apiClient.post(ServerStrings.initiatePayment, {
       order_id: orderId,
       callback_url: callbackUrl,
@@ -175,5 +176,21 @@ export const ordersApi = {
       success: data.success,
       message: data.message,
     };
+  },
+
+  getInvoice: async (orderId: number) => {
+    const response = await apiClient.get(ServerStrings.orderInvoice(orderId));
+    return response.data?.data;
+  },
+
+  getInvoicePdfUrl: (orderId: number, format?: string) => {
+    const token =
+      localStorage.getItem('dhabayih_access_token') ||
+      sessionStorage.getItem('dhabayih_access_token') ||
+      localStorage.getItem('access_token') ||
+      '';
+    const base = apiClient.defaults.baseURL || APP_CONFIG.apiBaseUrl;
+    const fmtQuery = format ? `&format=${encodeURIComponent(format)}` : '';
+    return `${base}${ServerStrings.orderInvoicePdf(orderId)}?token=${encodeURIComponent(token)}${fmtQuery}`;
   },
 };

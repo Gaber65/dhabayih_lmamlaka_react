@@ -177,6 +177,7 @@
   "order_status_out": "في الطريق مبرد",
   "order_status_delivered": "تم التوصيل بنجاح",
   "order_status_cancelled": "ملغي",
+  "order_status_refunded": "مسترجع",
   "cancel_order": "إلغاء الطلب",
   "cancel_order_confirm": "هل أنت متأكد من إلغاء هذا الطلب؟",
   "cancel_order_success": "تم إلغاء الطلب بنجاح",

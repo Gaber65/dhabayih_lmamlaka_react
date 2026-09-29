@@ -19,12 +19,15 @@ import {
   Home,
   MapPin,
   Calendar,
+  Printer,
+  FileText,
 } from 'lucide-react';
 import { ordersApi } from '../api/orders';
 import { OrderDetail, OrderListItem } from '../types/order.types';
 import { CartoonLoadingState } from '../components/common/CartoonLoadingState';
 import { CartoonEmptyState } from '../components/common/CartoonEmptyState';
 import { useUIStore } from '../store/useUIStore';
+import { InvoiceModal } from '../components/order/InvoiceModal';
 
 export const OrderSuccessPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -32,6 +35,7 @@ export const OrderSuccessPage: React.FC = () => {
   const location = useLocation();
   const result = location.state?.result;
   const isRtl = i18n.language === 'ar';
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const orderNumber = result?.orderNumber || 'ORD-0001';
   const orderId = result?.orderId || 1;
@@ -95,6 +99,14 @@ export const OrderSuccessPage: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-slate-100">
           <button
+            onClick={() => setShowInvoice(true)}
+            className="px-5 py-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+          >
+            <FileText className="w-4 h-4 text-teal-700" />
+            <span>{t('view_tax_invoice', 'عرض الفاتورة الضريبية')}</span>
+          </button>
+
+          <button
             onClick={() => navigate(`/orders/${orderId}`)}
             className="px-6 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs flex items-center gap-2 transition shadow-sm cursor-pointer"
           >
@@ -110,6 +122,12 @@ export const OrderSuccessPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <InvoiceModal
+        isOpen={showInvoice}
+        onClose={() => setShowInvoice(false)}
+        orderId={orderId}
+      />
     </div>
   );
 };
@@ -124,6 +142,53 @@ export const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const isRtl = i18n.language === 'ar';
+
+  const getOrderBadge = (state: string) => {
+    switch (state) {
+      case 'delivered':
+        return {
+          label: t('order_status_delivered', 'تم التوصيل بنجاح'),
+          className: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        };
+      case 'cancelled':
+        return {
+          label: t('order_status_cancelled', 'ملغي'),
+          className: 'bg-rose-50 text-rose-700 border border-rose-200',
+        };
+      case 'refunded':
+        return {
+          label: t('order_status_refunded', 'مسترجع'),
+          className: 'bg-purple-50 text-purple-700 border border-purple-200',
+        };
+      case 'confirmed':
+        return {
+          label: t('order_status_confirmed', 'تم التأكيد'),
+          className: 'bg-blue-50 text-blue-700 border border-blue-200',
+        };
+      case 'preparing':
+        return {
+          label: t('order_status_preparing', 'جاري التجهيز والذبح'),
+          className: 'bg-amber-50 text-amber-800 border border-amber-200',
+        };
+      case 'ready_pickup':
+        return {
+          label: t('order_status_ready', 'جاهز للاستلام'),
+          className: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+        };
+      case 'out_delivery':
+        return {
+          label: t('order_status_out', 'في الطريق مبرد'),
+          className: 'bg-cyan-50 text-cyan-700 border border-cyan-200',
+        };
+      case 'pending_payment':
+      case 'draft':
+      default:
+        return {
+          label: t('order_status_pending', 'في انتظار الدفع'),
+          className: 'bg-slate-100 text-slate-700 border border-slate-200',
+        };
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -146,7 +211,6 @@ export const OrdersPage: React.FC = () => {
   }, [isAuthenticated, activeTab, navigate]);
 
   if (!isAuthenticated) return null;
-
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 min-h-[70vh]">
@@ -175,7 +239,7 @@ export const OrdersPage: React.FC = () => {
           { id: 'all', label: t('all_orders', 'جميع الطلبات') },
           { id: 'active', label: t('active_orders', 'الطلبات الجارية') },
           { id: 'completed', label: t('completed_orders', 'الطلبات المكتملة') },
-          { id: 'cancelled', label: t('cancelled_orders', 'الملغاة') },
+          { id: 'cancelled', label: t('cancelled_orders', 'الطلبات الملغاة والمسترجعة') },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -202,45 +266,36 @@ export const OrdersPage: React.FC = () => {
         />
       ) : (
         <div className="space-y-3">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              onClick={() => navigate(`/orders/${order.id}`)}
-              className="bg-white rounded-2xl border border-slate-200 hover:border-brand-500 p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-black text-slate-900">{order.name}</span>
-                  <span
-                    className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                      order.state === 'delivered'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : order.state === 'cancelled'
-                        ? 'bg-rose-50 text-rose-700'
-                        : 'bg-amber-50 text-amber-800 border border-amber-200'
-                    }`}
-                  >
-                    {order.state === 'delivered'
-                      ? t('order_status_delivered', 'تم التوصيل بنجاح')
-                      : order.state === 'cancelled'
-                      ? t('order_status_cancelled', 'ملغي')
-                      : t('order_status_preparing', 'جاري التجهيز والذبح')}
-                  </span>
+          {orders.map((order) => {
+            const badge = getOrderBadge(order.state);
+            return (
+              <div
+                key={order.id}
+                onClick={() => navigate(`/orders/${order.id}`)}
+                className="bg-white rounded-2xl border border-slate-200 hover:border-brand-500 p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-black text-slate-900">{order.name}</span>
+                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${badge.className}`}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-medium">{order.date}</div>
                 </div>
-                <div className="text-[11px] text-slate-400 font-medium">{order.date}</div>
-              </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-4">
-                <div className="font-mono text-base font-black text-slate-900">
-                  {order.total.toLocaleString('en-US')} {t('sar', 'ر.س')}
+                <div className="flex items-center justify-between sm:justify-end gap-4">
+                  <div className="font-mono text-base font-black text-slate-900">
+                    {order.total.toLocaleString('en-US')} {t('sar', 'ر.س')}
+                  </div>
+                  <button className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-brand-50 text-brand-600 font-bold text-xs transition border border-slate-200 flex items-center gap-1">
+                    <span>{t('track_timeline', 'تتبع المسار')}</span>
+                    {isRtl ? <span>➔</span> : <span>→</span>}
+                  </button>
                 </div>
-                <button className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-brand-50 text-brand-600 font-bold text-xs transition border border-slate-200 flex items-center gap-1">
-                  <span>{t('track_timeline', 'تتبع المسار')}</span>
-                  {isRtl ? <span>➔</span> : <span>→</span>}
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -254,6 +309,7 @@ export const OrderDetailsPage: React.FC = () => {
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showInvoice, setShowInvoice] = useState(false);
   const isRtl = i18n.language === 'ar';
 
   useEffect(() => {
@@ -293,40 +349,114 @@ export const OrderDetailsPage: React.FC = () => {
     );
   }
 
+  const getStatusInfo = (state: string) => {
+    switch (state) {
+      case 'draft':
+      case 'pending_payment':
+        return {
+          title: t('order_status_pending_payment', 'في انتظار تأكيد الدفع'),
+          className: 'bg-amber-50 text-amber-800 border-amber-200',
+        };
+      case 'confirmed':
+        return {
+          title: t('order_status_confirmed', 'تم تأكيد الطلب واعتماده'),
+          className: 'bg-blue-50 text-blue-700 border-blue-200',
+        };
+      case 'preparing':
+        return {
+          title: t('order_status_preparing', 'جاري التجهيز والذبح في المسلخ'),
+          className: 'bg-brand-50 text-brand-700 border-brand-200',
+        };
+      case 'ready_pickup':
+        return {
+          title: t('order_status_ready_pickup', 'جاهز للاستلام / الفحص البيطري مكتمل'),
+          className: 'bg-purple-50 text-purple-700 border-purple-200',
+        };
+      case 'out_delivery':
+        return {
+          title: t('order_status_out_delivery', 'في الطريق بسيارة التبريد 🚐'),
+          className: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        };
+      case 'delivered':
+        return {
+          title: t('order_status_delivered', 'تم التوصيل والاستلام بنجاح'),
+          className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        };
+      case 'cancelled':
+        return {
+          title: t('order_status_cancelled', 'تم إلغاء الطلب'),
+          className: 'bg-rose-50 text-rose-700 border-rose-200',
+        };
+      case 'refunded':
+        return {
+          title: t('order_status_refunded', 'تم استرجاع المبلغ'),
+          className: 'bg-slate-100 text-slate-700 border-slate-300',
+        };
+      default:
+        return {
+          title: state,
+          className: 'bg-slate-50 text-slate-700 border-slate-200',
+        };
+    }
+  };
+
+  const getStepProgress = (state: string) => {
+    switch (state) {
+      case 'delivered':
+        return 5;
+      case 'out_delivery':
+        return 4;
+      case 'ready_pickup':
+        return 3;
+      case 'preparing':
+        return 2;
+      case 'confirmed':
+        return 1;
+      case 'draft':
+      case 'pending_payment':
+      default:
+        return 0;
+    }
+  };
+
+  const currentProgress = getStepProgress(order.state);
+  const statusInfo = getStatusInfo(order.state);
+  const isCancelled = order.state === 'cancelled';
+
   const trackingSteps = [
     {
       title: t('step_order_received', 'تم استلام وتأكيد الطلب'),
       desc: t('step_order_received_desc', 'تم تثبيت الطلب وتخصيص الذبيحة في المسلخ'),
-      done: true,
-      current: false,
+      done: currentProgress >= 1,
+      current: currentProgress === 1,
       icon: Check,
     },
     {
       title: t('step_butchery_packaging', 'الذبح والتقطيع والتغليف'),
       desc: t('step_butchery_packaging_desc', 'الذبح الحلال وتجهيز القطع والتغليف سحب هواء'),
-      done: true,
-      current: true,
+      done: currentProgress >= 2,
+      current: currentProgress === 2,
       icon: Scissors,
     },
     {
       title: t('step_vet_check', 'الفحص البيطري المعتمد'),
       desc: t('step_vet_check_desc', 'معاينة الطبيب البيطري وختم الجودة والسلامة'),
-      done: false,
-      current: false,
+      done: currentProgress >= 3,
+      current: currentProgress === 3,
       icon: Stethoscope,
     },
     {
       title: t('step_refrigerated_transit', 'في الطريق بسيارة مبردة 4°C'),
       desc: t('step_refrigerated_transit_desc', 'المندوب في طريقه لعنوانك بالرياض'),
-      done: false,
-      current: false,
+      done: currentProgress >= 4,
+      current: currentProgress === 4,
       icon: Truck,
     },
     {
       title: t('step_delivered', 'تم التوصيل والاستلام'),
       desc: t('step_delivered_desc', 'تسليم الذبيحة طازجة لباب منزلك'),
-      done: false,
-      current: false,
+      done: currentProgress >= 5,
+      current: currentProgress === 5,
       icon: CheckCircle2,
     },
   ];
@@ -344,24 +474,43 @@ export const OrderDetailsPage: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-xl md:text-2xl font-black text-slate-900">{order.name}</h1>
-            <span className="bg-brand-50 text-brand-700 border border-brand-200 text-xs font-black px-2.5 py-0.5 rounded-md">
-              {t('order_status_preparing', 'جاري التجهيز والذبح في المسلخ')}
+            <span className={`border text-xs font-black px-2.5 py-0.5 rounded-md ${statusInfo.className}`}>
+              {statusInfo.title}
             </span>
+            {order.paymentStatus === 'paid' ? (
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                ✓ {t('paid_badge', 'تم السداد')}
+              </span>
+            ) : order.paymentStatus === 'pending' ? (
+              <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                ⏳ {t('pending_payment_badge', 'بانتظار الدفع')}
+              </span>
+            ) : null}
           </div>
           <p className="text-xs text-slate-500 font-medium mt-1">
             {t('order_time', 'وقت الطلب:')} {order.date} • {t('delivery_est', 'التوصيل المتوقع: فوري اليوم')}
           </p>
         </div>
 
-        <a
-          href="tel:920000000"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition self-start sm:self-auto"
-        >
-          <PhoneCall className="w-3.5 h-3.5 text-brand-500" />
-          <span>{t('call_support', 'الاتصال بالدعم (920000000)')}</span>
-        </a>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setShowInvoice(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>{t('print_invoice_btn', 'طباعة الفاتورة')}</span>
+          </button>
+
+          <a
+            href="tel:920000000"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition"
+          >
+            <PhoneCall className="w-3.5 h-3.5 text-brand-500" />
+            <span>{t('call_support', 'الاتصال بالدعم (920000000)')}</span>
+          </a>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -427,9 +576,18 @@ export const OrderDetailsPage: React.FC = () => {
 
         {/* Right: Items & Receipt Summary (5 Cols) */}
         <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <h3 className="text-sm font-black text-slate-900 pb-3 border-b border-slate-100">
-            {t('invoice_details', 'تفاصيل الفاتورة والمشتريات')}
-          </h3>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-sm font-black text-slate-900">
+              {t('invoice_details', 'تفاصيل الفاتورة والمشتريات')}
+            </h3>
+            <button
+              onClick={() => setShowInvoice(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl text-xs font-bold transition cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>{t('print_invoice_btn', 'طباعة الفاتورة')}</span>
+            </button>
+          </div>
 
           <div className="space-y-3">
             {order.lines.map((line) => (
@@ -471,6 +629,13 @@ export const OrderDetailsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <InvoiceModal
+        isOpen={showInvoice}
+        onClose={() => setShowInvoice(false)}
+        orderId={order.id}
+        initialOrder={order}
+      />
     </div>
   );
 };

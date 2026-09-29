@@ -22,12 +22,20 @@ export const PaymentCallbackPage: React.FC = () => {
     let isMounted = true;
 
     const verifyTransaction = async () => {
-      // 1. Extract paymentId and orderId from query params
-      const paymentId =
-        searchParams.get('paymentId') ||
-        searchParams.get('payment_id') ||
-        searchParams.get('Id');
-      const orderIdParam = searchParams.get('order_id');
+      // 1. Flexible query parameter extraction (handles double '?' or '&' in redirect URL)
+      const fullUrl = window.location.href;
+      const getQueryParam = (key: string): string | null => {
+        const standard = searchParams.get(key);
+        if (standard) return standard;
+        try {
+          const regExp = new RegExp(`[?&]${key}=([^&#]*)`, 'i');
+          const match = fullUrl.match(regExp);
+          if (match && match[1]) {
+            return decodeURIComponent(match[1]);
+          }
+        } catch (_) {}
+        return null;
+      };
 
       // 2. Retrieve pending order info from sessionStorage
       let savedOrder: any = null;
@@ -36,11 +44,84 @@ export const PaymentCallbackPage: React.FC = () => {
         if (raw) savedOrder = JSON.parse(raw);
       } catch {}
 
+      const paymentId =
+        getQueryParam('id') ||
+        getQueryParam('paymentId') ||
+        getQueryParam('payment_id') ||
+        getQueryParam('Id') ||
+        savedOrder?.invoiceId;
+      const orderIdParam = getQueryParam('order_id');
+      const statusParam = getQueryParam('status')?.toLowerCase();
+
       const effectiveOrderId = orderIdParam
         ? Number(orderIdParam)
         : savedOrder?.orderId;
 
+      // Helper function to handle verified success
+      const handleSuccess = (finalOrderData: any) => {
+        if (!isMounted) return;
+        setStatus('success');
+        setOrderData(finalOrderData);
+        clearCart();
+        sessionStorage.removeItem('pending_order_info');
+
+        try {
+          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        } catch {}
+
+        setTimeout(() => {
+          navigate('/order-success', {
+            replace: true,
+            state: {
+              order: {
+                ...savedOrder,
+                ...finalOrderData,
+                orderId: finalOrderData.orderId || finalOrderData.id || effectiveOrderId,
+                orderNumber: finalOrderData.orderNumber || finalOrderData.name || savedOrder?.orderNumber,
+                state: 'confirmed',
+                paymentStatus: 'paid',
+              },
+            },
+          });
+        }, 2200);
+      };
+
+      // 3. Fallback flow: If paymentId is missing or status is paid without an ID
       if (!paymentId) {
+        if (effectiveOrderId) {
+          // Poll order detail up to 4 times with 1.2s delay to wait for Moyasar webhook/backend
+          for (let attempt = 0; attempt < 4; attempt++) {
+            if (!isMounted) return;
+            try {
+              const orderDetail = await ordersApi.getOrderDetail(effectiveOrderId);
+              if (
+                orderDetail &&
+                (orderDetail.paymentStatus === 'paid' ||
+                  orderDetail.state === 'confirmed' ||
+                  orderDetail.state === 'preparing' ||
+                  orderDetail.state === 'delivering')
+              ) {
+                handleSuccess({
+                  ...savedOrder,
+                  orderId: orderDetail.id,
+                  orderNumber: orderDetail.name,
+                  state: orderDetail.state,
+                  paymentStatus: orderDetail.paymentStatus,
+                  subtotal: orderDetail.subtotal,
+                  total: orderDetail.total,
+                  success: true,
+                });
+                return;
+              }
+            } catch (_) {}
+
+            // Wait before next polling attempt
+            if (attempt < 3) {
+              await new Promise((res) => setTimeout(res, 1200));
+            }
+          }
+        }
+
         if (isMounted) {
           setStatus('failed');
           setErrorMessage(
@@ -53,51 +134,29 @@ export const PaymentCallbackPage: React.FC = () => {
         return;
       }
 
+      // 4. Primary flow: Call server verification endpoint with paymentId
       try {
-        // 3. Call server verification endpoint
-        const result = await ordersApi.verifyPayment(effectiveOrderId, paymentId);
+        let result = await ordersApi.verifyPayment(effectiveOrderId, paymentId);
+
+        // If not successful on first attempt, retry once after 1.5s
+        if (!result || (!result.success && result.paymentStatus !== 'paid' && result.state !== 'confirmed')) {
+          await new Promise((res) => setTimeout(res, 1500));
+          result = await ordersApi.verifyPayment(effectiveOrderId, paymentId);
+        }
 
         if (!isMounted) return;
 
         if (result && (result.success || result.paymentStatus === 'paid' || result.state === 'confirmed')) {
-          setStatus('success');
-          setOrderData({
+          handleSuccess({
             ...savedOrder,
             ...result,
+            orderId: result.orderId || effectiveOrderId,
+            orderNumber: result.orderNumber || savedOrder?.orderNumber,
           });
-
-          // Clear cart on verified payment
-          clearCart();
-          sessionStorage.removeItem('pending_order_info');
-
-          try {
-            confetti({
-              particleCount: 120,
-              spread: 80,
-              origin: { y: 0.6 },
-            });
-          } catch {}
-
-          // Auto-navigate to order-success after brief celebratory display
-          setTimeout(() => {
-            navigate('/order-success', {
-              replace: true,
-              state: {
-                order: {
-                  ...savedOrder,
-                  ...result,
-                  orderId: result.orderId || effectiveOrderId,
-                  orderNumber: result.orderNumber || savedOrder?.orderNumber,
-                  state: 'confirmed',
-                  paymentStatus: 'paid',
-                },
-              },
-            });
-          }, 2200);
         } else {
           setStatus('failed');
           setErrorMessage(
-            result.message ||
+            result?.message ||
               t('payment_declined_msg', 'تم رفض عملية الدفع أو لم تكتمل بنجاح من قبل البنك المصدر.')
           );
         }
@@ -107,7 +166,7 @@ export const PaymentCallbackPage: React.FC = () => {
         setErrorMessage(
           err.response?.data?.message ||
             err.message ||
-            t('payment_verification_error', 'حدث خطأ أثناء التحقق من حالة الدفع مع بوابة ماي فاتورة.')
+            t('payment_verification_error', 'حدث خطأ أثناء التحقق من حالة الدفع مع بوابة ميسر.')
         );
       }
     };

@@ -39,9 +39,11 @@ export const ServerStrings = {
   receiveOrder: (id: number) => `/api/v1/orders/${id}/receive`,
   applyCoupon: '/api/v1/orders/apply-coupon',
   removeCoupon: '/api/v1/orders/remove-coupon',
-  initiatePayment: '/api/v1/payments/myfatoorah/initiate',
-  verifyPayment: '/api/v1/payments/myfatoorah/verify',
+  initiatePayment: '/api/v1/payments/moyasar/initiate',
+  verifyPayment: '/api/v1/payments/moyasar/verify',
   switchPaymentMethod: (orderId: number) => `/api/v1/orders/${orderId}/switch-payment-method`,
+  orderInvoice: (id: number) => `/api/v1/orders/${id}/invoice`,
+  orderInvoicePdf: (id: number) => `/api/v1/orders/${id}/invoice/pdf`,
 
   // 6. Loyalty
   loyaltySummary: '/api/v1/loyalty/summary',

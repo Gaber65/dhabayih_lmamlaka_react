@@ -177,6 +177,7 @@
   "order_status_out": "Out for Delivery (Cold)",
   "order_status_delivered": "Delivered",
   "order_status_cancelled": "Cancelled",
+  "order_status_refunded": "Refunded",
   "cancel_order": "Cancel Order",
   "cancel_order_confirm": "Are you sure you want to cancel this order?",
   "cancel_order_success": "Order cancelled successfully",

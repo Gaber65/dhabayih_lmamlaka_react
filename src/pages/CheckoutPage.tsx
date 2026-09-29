@@ -19,9 +19,11 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ordersApi } from '../api/orders';
+import { cartApi } from '../api/cart';
 import { addressApi } from '../api/address';
 import { branchesApi } from '../api/branches';
 import { Branch } from '../types/branch.types';
+import { PaymentMethod } from '../types/order.types';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAddressStore } from '../store/useAddressStore';
@@ -33,6 +35,7 @@ export const CheckoutPage: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
   const {
     cart,
+    fetchCart,
     clearCart,
     couponCode,
     discountAmount,
@@ -41,9 +44,11 @@ export const CheckoutPage: React.FC = () => {
   const { addToast } = useUIStore();
 
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
+  const [deliveryFee, setDeliveryFee] = useState<number>(31.95);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [backendMethods, setBackendMethods] = useState<PaymentMethod[]>([]);
   const [recipientName, setRecipientName] = useState(user?.name || '');
   const [recipientPhone, setRecipientPhone] = useState(user?.phone || '');
   const [streetAddress, setStreetAddress] = useState('');
@@ -52,16 +57,33 @@ export const CheckoutPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const loadBranches = async () => {
+    const loadCheckoutData = async () => {
       setLoadingBranches(true);
-      const list = await branchesApi.getBranches();
-      setBranches(list);
-      if (list.length > 0) {
-        setSelectedBranchId(list[0].id);
+      try {
+        await fetchCart();
+        const [branchesList, summaryRes, methodsRes] = await Promise.all([
+          branchesApi.getBranches().catch(() => []),
+          ordersApi.getCheckoutSummary().catch(() => null),
+          ordersApi.getPaymentMethods().catch(() => []),
+        ]);
+        setBranches(branchesList);
+        if (branchesList.length > 0) {
+          setSelectedBranchId(branchesList[0].id);
+        }
+        if (summaryRes) {
+          const fee = summaryRes.delivery_methods?.find((m: any) => m.code === 'address')?.fee;
+          if (typeof fee === 'number') {
+            setDeliveryFee(fee);
+          }
+        }
+        if (methodsRes && methodsRes.length > 0) {
+          setBackendMethods(methodsRes);
+        }
+      } finally {
+        setLoadingBranches(false);
       }
-      setLoadingBranches(false);
     };
-    loadBranches();
+    loadCheckoutData();
   }, []);
 
   useEffect(() => {
@@ -77,7 +99,6 @@ export const CheckoutPage: React.FC = () => {
 
   if (!isAuthenticated) return null;
 
-
   const isRtl = i18n.language === 'ar';
 
   const paymentOptions = [
@@ -89,7 +110,8 @@ export const CheckoutPage: React.FC = () => {
 
   const lines = cart?.lines || [];
   const subtotal = cart?.subtotal || lines.reduce((s, l) => s + (l.lineTotal || 0), 0);
-  const total = cart?.total || Math.max(0, subtotal - discountAmount);
+  const shippingFee = deliveryType === 'delivery' ? deliveryFee : 0;
+  const total = Math.max(0, subtotal - discountAmount + shippingFee);
 
   if (lines.length === 0) {
     return (
@@ -158,12 +180,65 @@ export const CheckoutPage: React.FC = () => {
 
       // Map UI payment option to payment method ID / code
       const isOnlinePayment = selectedPayment !== 'cod';
+
+      const resolvePaymentMethodId = (paymentCode: string): number => {
+        if (backendMethods.length > 0) {
+          if (paymentCode === 'applepay') {
+            const found = backendMethods.find((m) => m.code === 'apple_pay' || m.code === 'applepay');
+            if (found) return found.id;
+          }
+          if (paymentCode === 'visa') {
+            const found = backendMethods.find((m) => m.code === 'card' || m.code === 'visa');
+            if (found) return found.id;
+          }
+          const found = backendMethods.find((m) => m.code === paymentCode);
+          if (found) return found.id;
+        }
+        const idMap: Record<string, number> = {
+          cod: 1,
+          visa: 2,
+          mada: 3,
+          stc_pay: 4,
+          applepay: 5,
+          moyasar: 3,
+        };
+        return idMap[paymentCode] || (paymentCode === 'cod' ? 1 : 3);
+      };
+
+      const resolvedPaymentMethodId = resolvePaymentMethodId(selectedPayment);
       
+      // Ensure backend cart has items before checkout
+      const currentBackendCart = await cartApi.getCart().catch(() => null);
+      if (!currentBackendCart || !currentBackendCart.lines || currentBackendCart.lines.length === 0) {
+        if (lines.length > 0) {
+          for (const line of lines) {
+            try {
+              await cartApi.addToCart({
+                productId: line.productId,
+                quantity: line.quantity,
+                sizeId: line.sizeId,
+                cuttingOptionId: line.cuttingOption?.id,
+                packagingIds: line.packagingOptions?.map((p: any) => p.id),
+                excludedPartIds: line.excludedParts?.map((e: any) => e.id),
+                notes: line.notes,
+              });
+            } catch (_) {}
+          }
+        } else {
+          addToast({
+            type: 'error',
+            title: t('empty_cart_title', 'السلة فارغة'),
+            message: t('empty_cart_msg', 'يرجى إضافة منتجات إلى السلة أولاً'),
+          });
+          return;
+        }
+      }
+
       const apiResult = await ordersApi.checkout({
         deliveryType: deliveryType === 'pickup' ? 'pickup' : 'address',
         addressId: deliveryType === 'delivery' ? addressId : undefined,
         branchId: deliveryType === 'pickup' ? (selectedBranchId || undefined) : undefined,
-        paymentMethodId: isOnlinePayment ? 2 : 1, // 1: COD, 2: Online Card / MyFatoorah
+        paymentMethodId: resolvedPaymentMethodId,
         notes: notes.trim() || undefined,
         couponCode: couponCode || undefined,
       });
@@ -197,11 +272,8 @@ export const CheckoutPage: React.FC = () => {
       };
 
       if (isOnlinePayment) {
-        // Save pending order info in sessionStorage for callback verification
-        sessionStorage.setItem('pending_order_info', JSON.stringify(orderResult));
-
-        const callbackUrl = `${window.location.origin}/payment/callback?order_id=${apiResult.orderId}`;
-        const errorUrl = `${window.location.origin}/payment/callback?order_id=${apiResult.orderId}`;
+        const callbackUrl = `${window.location.origin}/payment/callback`;
+        const errorUrl = `${window.location.origin}/payment/callback`;
 
         const paymentRes = await ordersApi.initiatePayment(
           apiResult.orderId,
@@ -210,17 +282,28 @@ export const CheckoutPage: React.FC = () => {
           selectedPayment
         );
 
+        // Save pending order info with invoiceId in sessionStorage for callback verification
+        sessionStorage.setItem(
+          'pending_order_info',
+          JSON.stringify({
+            ...orderResult,
+            invoiceId: paymentRes.invoiceId,
+          })
+        );
+
         if (paymentRes.paymentUrl) {
           addToast({
             type: 'info',
             title: t('redirecting_to_payment', 'جاري التوجيه لبوابة الدفع...'),
-            message: t('redirecting_to_mf_desc', 'نقوم بتحويلك إلى بوابة ماي فاتورة الآمنة لإتمام سداد طلبك.'),
+            message: t('redirecting_to_moyasar_desc', 'نقوم بتحويلك إلى بوابة الدفع الآمنة (ميسر) لإتمام سداد طلبك.'),
           });
-          // Redirect to MyFatoorah gateway
+          // Clear cart now that checkout order is created and pending payment
+          await clearCart();
+          // Redirect to Moyasar gateway
           window.location.href = paymentRes.paymentUrl;
           return;
         } else {
-          throw new Error(t('failed_to_get_payment_url', 'تعذر استخراج رابط الدفع من بوابة ماي فاتورة. يرجى المحاولة لاحقاً.'));
+          throw new Error(t('failed_to_get_payment_url', 'تعذر استخراج رابط الدفع من بوابة ميسر. يرجى المحاولة لاحقاً.'));
         }
       }
 
@@ -656,8 +739,14 @@ export const CheckoutPage: React.FC = () => {
               )}
 
               <div className="flex items-center justify-between text-slate-600">
-                <span>{t('delivery_fee', 'التوصيل المبرد:')}</span>
-                <span className="text-emerald-600 font-bold">{t('free', 'مجاني')}</span>
+                <span>{t('delivery_fee', 'رسوم الشحن والتوصيل:')}</span>
+                {deliveryType === 'delivery' ? (
+                  <span className="font-bold font-mono text-slate-800">
+                    {deliveryFee > 0 ? `${deliveryFee.toLocaleString('en-US')} ${t('sar', 'ر.س')}` : t('free', 'مجاني')}
+                  </span>
+                ) : (
+                  <span className="text-emerald-600 font-bold">{t('free_pickup', 'استلام مجاني من الفرع')}</span>
+                )}
               </div>
 
               <div className="flex items-center justify-between text-slate-400 text-[11px]">
