@@ -1,49 +1,104 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Mail, AlertCircle } from 'lucide-react';
-import { CartoonModal } from '../components/common/CartoonModal';
+import { Mail, Smartphone, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUIStore } from '../store/useUIStore';
+import { SaudiPhoneInput } from '../components/auth/SaudiPhoneInput';
+import { OtpModal } from '../components/auth/OtpModal';
+import { normalizeSaudiPhone, isValidSaudiPhone, isValidEmail } from '../utils/phoneUtils';
 
 export const LoginPage: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const isArabic = i18n.language.startsWith('ar');
   const navigate = useNavigate();
   const { setAuth, setGuest } = useAuthStore();
   const { addToast } = useUIStore();
 
+  const [mode, setMode] = useState<'sms' | 'email'>('sms');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const [activeIdentifier, setActiveIdentifier] = useState('');
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    setErrorMessage(null);
+
+    let identifierToSend = '';
+
+    if (mode === 'sms') {
+      if (!phone.trim()) {
+        addToast({
+          type: 'error',
+          title: t('error', 'تنبيه'),
+          message: isArabic ? 'يرجى إدخال رقم الجوال' : 'Please enter your phone number',
+        });
+        return;
+      }
+
+      const normalized = normalizeSaudiPhone(phone);
+      if (!normalized || !isValidSaudiPhone(normalized)) {
+        const errorText = isArabic
+          ? 'يرجى إدخال رقم جوال سعودي صحيح (مثال: 05XXXXXXXX)'
+          : 'Please enter a valid Saudi mobile number (e.g. 05XXXXXXXX)';
+        setErrorMessage(errorText);
+        addToast({
+          type: 'error',
+          title: t('error', 'تنبيه'),
+          message: errorText,
+        });
+        return;
+      }
+      identifierToSend = normalized;
+    } else {
+      if (!email.trim() || !isValidEmail(email)) {
+        const errorText = isArabic
+          ? 'يرجى إدخال بريد إلكتروني صالح'
+          : 'Please enter a valid email address';
+        setErrorMessage(errorText);
+        addToast({
+          type: 'error',
+          title: t('error', 'تنبيه'),
+          message: errorText,
+        });
+        return;
+      }
+      identifierToSend = email.trim().toLowerCase();
+    }
 
     setLoading(true);
-    setErrorMessage(null);
     try {
-      await authApi.login(email.trim());
+      await authApi.login(identifierToSend, mode);
+      setActiveIdentifier(identifierToSend);
       setIsOtpModalOpen(true);
       addToast({
         type: 'info',
         title: t('otp_title', 'رمز التحقق'),
-        message: `${t('otp_sent_to', 'تم إرسال رمز التحقق إلى')} ${email}`,
+        message: `${t('otp_sent_to', 'تم إرسال رمز التحقق إلى')} ${identifierToSend}`,
       });
     } catch (err: any) {
       const rawMsg = err.response?.data?.message || '';
       let friendlyMsg = rawMsg;
       if (rawMsg.toLowerCase().includes('not verified')) {
-        friendlyMsg = 'حسابك غير مفعّل بعد. يرجى إدخال رمز التحقق لتفعيل الحساب.';
-      } else if (rawMsg.toLowerCase().includes('not found')) {
-        friendlyMsg = 'لم يتم العثور على حساب بهذا البريد. اضغط على «إنشاء حساب جديد» بالأسفل.';
+        friendlyMsg = isArabic
+          ? 'حسابك غير مفعّل بعد. يرجى إدخال رمز التحقق لتفعيل الحساب.'
+          : 'Your account is pending verification. Please verify your OTP.';
+      } else if (rawMsg.toLowerCase().includes('not found') || err.response?.status === 404) {
+        friendlyMsg = isArabic
+          ? 'لم يتم العثور على حساب بهذا المعرف. يرجى إنشاء حساب جديد أولاً.'
+          : 'No account found with this identifier. Please create a new account.';
       } else if (rawMsg.toLowerCase().includes('failed to send')) {
-        friendlyMsg = 'تعذر إرسال رمز التحقق حالياً، يرجى المحاولة مرة أخرى.';
+        friendlyMsg = isArabic
+          ? 'تعذر إرسال رمز التحقق حالياً، يرجى المحاولة مرة أخرى.'
+          : 'Failed to send verification code. Please try again.';
       } else if (!friendlyMsg) {
-        friendlyMsg = t('otp_send_failed', 'تعذر إرسال رمز التحقق، يرجى التأكد من البريد الإلكتروني');
+        friendlyMsg = isArabic
+          ? 'تعذر إرسال رمز التحقق، يرجى التأكد من البيانات والمحاولة لاحقاً'
+          : 'Failed to send OTP. Please check your details and try again.';
       }
 
       setErrorMessage(friendlyMsg);
@@ -57,13 +112,10 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp.trim()) return;
-
+  const handleVerifyOtp = async (otpCode: string) => {
     setLoading(true);
     try {
-      const res = await authApi.verifyLoginOtp(email, otp.trim());
+      const res = await authApi.verifyLoginOtp(activeIdentifier, otpCode);
       setAuth(res.user, res.accessToken, res.refreshToken);
       setIsOtpModalOpen(false);
       addToast({
@@ -83,6 +135,25 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (!activeIdentifier) return;
+    try {
+      await authApi.login(activeIdentifier, mode);
+      addToast({
+        type: 'info',
+        title: t('otp_title', 'رمز التحقق'),
+        message: `${t('otp_sent_to', 'تمت إعادة إرسال رمز التحقق إلى')} ${activeIdentifier}`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: t('error', 'خطأ'),
+        message: err.response?.data?.message || t('resend_failed', 'فشل إعادة إرسال رمز التحقق'),
+      });
+      throw err;
+    }
+  };
+
   const handleContinueAsGuest = () => {
     setGuest(true);
     navigate('/home');
@@ -90,20 +161,64 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-[85vh] flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 p-8 shadow-xs space-y-6 text-center">
-        <img
-          src="/app_logo.png"
-          alt="ذبائح المملكة"
-          className="w-20 h-20 object-contain mx-auto drop-shadow-xs"
-        />
+      <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6 text-center">
+        {/* App Logo */}
+        <div className="relative inline-block mx-auto">
+          <img
+            src="/app_logo.png"
+            alt="ذبائح المملكة"
+            className="w-20 h-20 object-contain mx-auto drop-shadow-xs"
+          />
+          <div className="absolute -bottom-1 -end-1 bg-amber-400 text-amber-950 p-1 rounded-full shadow-xs">
+            <Sparkles className="w-3.5 h-3.5" />
+          </div>
+        </div>
 
+        {/* Title */}
         <div>
           <h2 className="text-2xl font-black text-slate-900">{t('login_title', 'تسجيل الدخول')}</h2>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            {t('login_desc', 'أدخل بريدك الإلكتروني لاستلام رمز التحقق لمرة واحدة')}
+            {isArabic
+              ? 'اختر تسجيل الدخول برقم الجوال أو البريد الإلكتروني لاستلام رمز التحقق'
+              : 'Sign in using your mobile number or email to receive a verification code'}
           </p>
         </div>
 
+        {/* Mode Switcher Tabs (SMS / Email) */}
+        <div className="p-1 bg-slate-100 rounded-2xl flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('sms');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+              mode === 'sms'
+                ? 'bg-white text-brand-600 shadow-xs scale-100'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>{isArabic ? 'رقم الجوال (SMS)' : 'Phone (SMS)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('email');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+              mode === 'email'
+                ? 'bg-white text-brand-600 shadow-xs scale-100'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            <span>{isArabic ? 'البريد الإلكتروني' : 'Email'}</span>
+          </button>
+        </div>
+
+        {/* Error Alert */}
         {errorMessage && (
           <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-600 flex items-start gap-2.5 text-start animate-fade-in">
             <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
@@ -115,40 +230,67 @@ export const LoginPage: React.FC = () => {
                   onClick={() => setIsOtpModalOpen(true)}
                   className="inline-block text-xs font-black text-brand-600 hover:text-brand-700 underline cursor-pointer"
                 >
-                  اضغط هنا لإدخال رمز التحقق وتفعيل الحساب الآن
+                  {isArabic ? 'اضغط هنا لإدخال رمز التحقق وتفعيل الحساب الآن' : 'Click here to enter OTP and activate account'}
                 </button>
               )}
             </div>
           </div>
         )}
 
+        {/* Form */}
         <form onSubmit={handleSendOtp} className="space-y-4 text-start">
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
-              {t('email_label', 'البريد الإلكتروني')}
-            </label>
-            <div className="relative">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl px-4 py-3 text-xs md:text-sm font-bold text-slate-900 outline-none ps-10 transition"
+          {mode === 'sms' ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                {isArabic ? 'رقم الجوال السعودي' : 'Saudi Mobile Number'}
+              </label>
+              <SaudiPhoneInput
+                value={phone}
+                onChange={setPhone}
+                placeholder="05XXXXXXXX"
+                autoFocus
               />
-              <Mail className="w-4 h-4 text-slate-400 absolute start-3.5 top-3.5" />
+              <p className="text-[11px] text-slate-400 font-medium mt-1">
+                {isArabic ? 'أدخل رقم جوالك المكون من 9 أو 10 أرقام (مثال: 0588489998)' : 'Enter 9 or 10 digits starting with 05'}
+              </p>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                {t('email_label', 'البريد الإلكتروني')}
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl px-4 py-3 text-xs md:text-sm font-bold text-slate-900 outline-none ps-10 transition"
+                />
+                <Mail className="w-4 h-4 text-slate-400 absolute start-3.5 top-3.5" />
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? t('sending', 'جاري الإرسال...') : t('send_otp', 'إرسال رمز التحقق')}
+            {loading ? (
+              <span>{t('sending', 'جاري الإرسال...')}</span>
+            ) : (
+              <>
+                <span>{t('send_otp', 'إرسال رمز التحقق')}</span>
+                <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+              </>
+            )}
           </button>
         </form>
 
+        {/* Footer Actions */}
         <div className="pt-3 border-t border-slate-100 space-y-3">
           <button
             onClick={handleContinueAsGuest}
@@ -166,80 +308,107 @@ export const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      {/* OTP Modal */}
-      <CartoonModal
+      {/* 6-Digit OTP Modal with 60s cooldown */}
+      <OtpModal
         isOpen={isOtpModalOpen}
         onClose={() => setIsOtpModalOpen(false)}
-        title={t('verify_otp_title', 'أدخل رمز التحقق')}
-        subtitle={t('verify_otp_desc', { email }) || `تم إرسال رمز التحقق إلى ${email}`}
-      >
-        <form onSubmit={handleVerifyOtp} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
-              {t('otp_label', 'رمز التحقق (OTP)')}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="1234"
-                className="w-full text-center tracking-widest text-2xl font-mono font-black bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl py-3 text-slate-900 outline-none transition"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
-          >
-            {loading ? t('verifying', 'جاري التحقق...') : t('verify_btn', 'تأكيد ودخول')}
-          </button>
-        </form>
-      </CartoonModal>
+        identifier={activeIdentifier}
+        channel={mode}
+        onVerify={handleVerifyOtp}
+        onResend={handleResendOtp}
+        loading={loading}
+      />
     </div>
   );
 };
 
 export const RegisterPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n.language.startsWith('ar');
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
   const { addToast } = useUIStore();
 
+  const [mode, setMode] = useState<'sms' | 'email'>('sms');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [otp, setOtp] = useState('');
+  const [activeIdentifier, setActiveIdentifier] = useState('');
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    setErrorMessage(null);
+
+    let identifierToSend = '';
+
+    if (mode === 'sms') {
+      if (!phone.trim()) {
+        addToast({
+          type: 'error',
+          title: t('error', 'تنبيه'),
+          message: isArabic ? 'يرجى إدخال رقم الجوال' : 'Please enter your phone number',
+        });
+        return;
+      }
+
+      const normalized = normalizeSaudiPhone(phone);
+      if (!normalized || !isValidSaudiPhone(normalized)) {
+        const errorText = isArabic
+          ? 'يرجى إدخال رقم جوال سعودي صحيح (مثال: 05XXXXXXXX)'
+          : 'Please enter a valid Saudi mobile number (e.g. 05XXXXXXXX)';
+        setErrorMessage(errorText);
+        addToast({
+          type: 'error',
+          title: t('error', 'تنبيه'),
+          message: errorText,
+        });
+        return;
+      }
+      identifierToSend = normalized;
+    } else {
+      if (!email.trim() || !isValidEmail(email)) {
+        const errorText = isArabic
+          ? 'يرجى إدخال بريد إلكتروني صالح'
+          : 'Please enter a valid email address';
+        setErrorMessage(errorText);
+        addToast({
+          type: 'error',
+          title: t('error', 'تنبيه'),
+          message: errorText,
+        });
+        return;
+      }
+      identifierToSend = email.trim().toLowerCase();
+    }
 
     setLoading(true);
-    setErrorMessage(null);
     try {
-      await authApi.register(email.trim());
+      await authApi.register(identifierToSend, mode);
+      setActiveIdentifier(identifierToSend);
       setIsOtpModalOpen(true);
       addToast({
         type: 'info',
         title: t('otp_title', 'رمز التحقق'),
-        message: `${t('otp_sent_to', 'تم إرسال رمز التحقق إلى')} ${email}`,
+        message: `${t('otp_sent_to', 'تم إرسال رمز التحقق إلى')} ${identifierToSend}`,
       });
     } catch (err: any) {
       const rawMsg = err.response?.data?.message || '';
       let friendlyMsg = rawMsg;
-      if (rawMsg.toLowerCase().includes('already registered')) {
-        friendlyMsg = 'هذا البريد مسجل بالفعل. يمكنك التوجه لتسجيل الدخول مباشرة.';
+      if (rawMsg.toLowerCase().includes('already registered') || err.response?.status === 409) {
+        friendlyMsg = isArabic
+          ? 'هذا الرقم أو البريد مسجل بالفعل. يمكنك التوجه لتسجيل الدخول مباشرة.'
+          : 'This identifier is already registered. Please login instead.';
       } else if (rawMsg.toLowerCase().includes('failed to send')) {
-        friendlyMsg = 'تعذر إرسال رمز التحقق حالياً، يرجى المحاولة مرة أخرى.';
+        friendlyMsg = isArabic
+          ? 'تعذر إرسال رمز التحقق حالياً، يرجى المحاولة مرة أخرى.'
+          : 'Failed to send verification code. Please try again.';
       } else if (!friendlyMsg) {
-        friendlyMsg = t('account_create_failed', 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
+        friendlyMsg = isArabic
+          ? 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً'
+          : 'Failed to create account. Please try again later.';
       }
 
       setErrorMessage(friendlyMsg);
@@ -253,13 +422,10 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
-  const handleVerifyRegisterOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp.trim()) return;
-
+  const handleVerifyRegisterOtp = async (otpCode: string) => {
     setLoading(true);
     try {
-      const res = await authApi.verifyRegisterOtp(email.trim(), otp.trim());
+      const res = await authApi.verifyRegisterOtp(activeIdentifier, otpCode);
       setAuth(res.user, res.accessToken, res.refreshToken);
       setIsOtpModalOpen(false);
       addToast({
@@ -279,22 +445,85 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
+  const handleResendRegisterOtp = async () => {
+    if (!activeIdentifier) return;
+    try {
+      await authApi.register(activeIdentifier, mode);
+      addToast({
+        type: 'info',
+        title: t('otp_title', 'رمز التحقق'),
+        message: `${t('otp_sent_to', 'تمت إعادة إرسال رمز التحقق إلى')} ${activeIdentifier}`,
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: t('error', 'خطأ'),
+        message: err.response?.data?.message || t('resend_failed', 'فشل إعادة إرسال رمز التحقق'),
+      });
+      throw err;
+    }
+  };
+
   return (
     <div className="min-h-[85vh] flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 p-8 shadow-xs space-y-6 text-center">
-        <img
-          src="/app_logo.png"
-          alt="ذبائح المملكة"
-          className="w-20 h-20 object-contain mx-auto drop-shadow-xs"
-        />
+      <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6 text-center">
+        {/* App Logo */}
+        <div className="relative inline-block mx-auto">
+          <img
+            src="/app_logo.png"
+            alt="ذبائح المملكة"
+            className="w-20 h-20 object-contain mx-auto drop-shadow-xs"
+          />
+          <div className="absolute -bottom-1 -end-1 bg-brand-500 text-white p-1 rounded-full shadow-xs">
+            <Sparkles className="w-3.5 h-3.5" />
+          </div>
+        </div>
 
+        {/* Title */}
         <div>
           <h2 className="text-2xl font-black text-slate-900">{t('sign_up', 'إنشاء حساب جديد')}</h2>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            {t('register_desc', 'انضم إلى ذبائح المملكة واستمتع بالخصومات وتتبع طلباتك')}
+            {isArabic
+              ? 'انضم إلى ذبائح المملكة برقم الجوال أو البريد الإلكتروني لتجربة تسوق فاخرة'
+              : 'Join Dhabayih Lmamlaka for a fresh luxury shopping experience'}
           </p>
         </div>
 
+        {/* Mode Switcher Tabs (SMS / Email) */}
+        <div className="p-1 bg-slate-100 rounded-2xl flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('sms');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+              mode === 'sms'
+                ? 'bg-white text-brand-600 shadow-xs scale-100'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>{isArabic ? 'رقم الجوال (SMS)' : 'Phone (SMS)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('email');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+              mode === 'email'
+                ? 'bg-white text-brand-600 shadow-xs scale-100'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            <span>{isArabic ? 'البريد الإلكتروني' : 'Email'}</span>
+          </button>
+        </div>
+
+        {/* Error Alert */}
         {errorMessage && (
           <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-600 flex items-start gap-2.5 text-start animate-fade-in">
             <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
@@ -302,44 +531,73 @@ export const RegisterPage: React.FC = () => {
           </div>
         )}
 
+        {/* Form */}
         <form onSubmit={handleRegister} className="space-y-4 text-start">
           <div>
             <label className="block text-xs font-bold text-slate-800 mb-1.5">
-              {t('full_name', 'الاسم الكامل')}
+              {t('full_name', 'الاسم الكامل')} <span className="text-slate-400 font-normal">({isArabic ? 'اختياري' : 'Optional'})</span>
             </label>
             <input
               type="text"
-              required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="محمد السعيد"
+              placeholder={isArabic ? 'محمد السعيد' : 'Full Name'}
               className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl px-4 py-3 text-xs md:text-sm font-bold text-slate-900 outline-none transition"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
-              {t('email_label', 'البريد الإلكتروني')}
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@example.com"
-              className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl px-4 py-3 text-xs md:text-sm font-bold text-slate-900 outline-none transition"
-            />
-          </div>
+          {mode === 'sms' ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                {isArabic ? 'رقم الجوال السعودي' : 'Saudi Mobile Number'}
+              </label>
+              <SaudiPhoneInput
+                value={phone}
+                onChange={setPhone}
+                placeholder="05XXXXXXXX"
+                autoFocus
+              />
+              <p className="text-[11px] text-slate-400 font-medium mt-1">
+                {isArabic ? 'أدخل رقم جوالك المكون من 9 أو 10 أرقام (مثال: 0588489998)' : 'Enter 9 or 10 digits starting with 05'}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                {t('email_label', 'البريد الإلكتروني')}
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl px-4 py-3 text-xs md:text-sm font-bold text-slate-900 outline-none ps-10 transition"
+                />
+                <Mail className="w-4 h-4 text-slate-400 absolute start-3.5 top-3.5" />
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? t('creating_account', 'جاري إنشاء الحساب...') : t('sign_up', 'إنشاء الحساب')}
+            {loading ? (
+              <span>{t('creating_account', 'جاري إنشاء الحساب...')}</span>
+            ) : (
+              <>
+                <span>{t('sign_up', 'إنشاء الحساب')}</span>
+                <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+              </>
+            )}
           </button>
         </form>
 
+        {/* Footer */}
         <div className="pt-3 border-t border-slate-100">
           <p className="text-xs text-slate-500 font-medium">
             {t('already_have_account', 'لديك حساب بالفعل؟')}{' '}
@@ -350,40 +608,16 @@ export const RegisterPage: React.FC = () => {
         </div>
       </div>
 
-      {/* OTP Modal */}
-      <CartoonModal
+      {/* 6-Digit OTP Modal with 60s cooldown */}
+      <OtpModal
         isOpen={isOtpModalOpen}
         onClose={() => setIsOtpModalOpen(false)}
-        title={t('verify_otp_title', 'أدخل رمز التحقق')}
-        subtitle={`تم إرسال رمز التحقق إلى ${email}`}
-      >
-        <form onSubmit={handleVerifyRegisterOtp} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
-              {t('otp_label', 'رمز التحقق (OTP)')}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="1234"
-                className="w-full text-center tracking-widest text-2xl font-mono font-black bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white rounded-xl py-3 text-slate-900 outline-none transition"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs md:text-sm rounded-xl transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
-          >
-            {loading ? t('verifying', 'جاري التحقق...') : t('verify_btn', 'تأكيد ودخول')}
-          </button>
-        </form>
-      </CartoonModal>
+        identifier={activeIdentifier}
+        channel={mode}
+        onVerify={handleVerifyRegisterOtp}
+        onResend={handleResendRegisterOtp}
+        loading={loading}
+      />
     </div>
   );
 };
