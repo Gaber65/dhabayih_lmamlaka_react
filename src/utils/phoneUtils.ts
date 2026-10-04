@@ -7,8 +7,8 @@ export const normalizeDigits = (input: string): string => {
   const persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   let result = input;
   for (let i = 0; i < 10; i++) {
-    result = result.replaceAll(arabic[i], `${i}`);
-    result = result.replaceAll(persian[i], `${i}`);
+    result = result.replace(new RegExp(arabic[i], 'g'), `${i}`);
+    result = result.replace(new RegExp(persian[i], 'g'), `${i}`);
   }
   return result;
 };
