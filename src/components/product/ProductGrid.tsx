@@ -41,6 +41,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   ];
 
   const hasActiveFilters =
+    Boolean(filters.searchQuery) ||
     filters.categoryId !== null ||
     filters.minPrice > 0 ||
     filters.maxPrice < 5000 ||
@@ -116,6 +117,16 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-slate-400 font-medium">{t('active_filters', 'الفلاتر النشطة:')}</span>
 
+          {filters.searchQuery && (
+            <span className="inline-flex items-center gap-1 bg-brand-50 text-brand-700 border border-brand-200 px-2.5 py-1 rounded-lg font-bold">
+              <span>{t('search_tag', 'بحث:')} "{filters.searchQuery}"</span>
+              <X
+                onClick={() => onRemoveFilterTag('searchQuery')}
+                className="w-3.5 h-3.5 hover:text-brand-900 cursor-pointer"
+              />
+            </span>
+          )}
+
           {filters.categoryId !== null && (
             <span className="inline-flex items-center gap-1 bg-brand-50 text-brand-700 border border-brand-200 px-2.5 py-1 rounded-lg font-bold">
               <span>{t('category_filter', 'القسم المختار')}</span>
@@ -158,6 +169,32 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               />
             </span>
           ))}
+
+          {filters.selectedCuttingStyles.map((c) => (
+            <span
+              key={c}
+              className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-bold"
+            >
+              <span>{c}</span>
+              <X
+                onClick={() => onRemoveFilterTag('selectedCuttingStyles', c)}
+                className="w-3.5 h-3.5 hover:text-slate-900 cursor-pointer"
+              />
+            </span>
+          ))}
+
+          {filters.selectedPackaging.map((p) => (
+            <span
+              key={p}
+              className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-bold"
+            >
+              <span>{p}</span>
+              <X
+                onClick={() => onRemoveFilterTag('selectedPackaging', p)}
+                className="w-3.5 h-3.5 hover:text-slate-900 cursor-pointer"
+              />
+            </span>
+          ))}
         </div>
       )}
 
@@ -185,6 +222,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
             <CartoonProductCard
               key={p.id}
               product={p}
+              viewMode="list"
               className="flex-row items-center p-3"
               onQuickView={onQuickView}
             />

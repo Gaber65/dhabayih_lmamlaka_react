@@ -11,10 +11,13 @@ export const normalizeImageUrl = (url?: string | null): string => {
   }
 
   // Replace localhost or internal docker hosts with live backend URL
-  let cleanUrl = trimmed.replace(
-    /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?/i,
-    APP_CONFIG.apiBaseUrl
-  );
+  let cleanUrl = trimmed
+    .replace(/^https?:\/\/[^/]+(?=\/api\/v1\/)/i, '')
+    .replace(/^https?:\/\/[^/]+:8069/i, '')
+    .replace(
+      /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|gaber)(?::\d+)?/i,
+      APP_CONFIG.apiBaseUrl
+    );
 
   // If already absolute URL pointing to http or https, return it
   if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {

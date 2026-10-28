@@ -5,6 +5,7 @@ import { Category } from '../../types/product.types';
 
 export interface FilterState {
   categoryId: number | null;
+  searchQuery?: string;
   minPrice: number;
   maxPrice: number;
   selectedWeights: string[];

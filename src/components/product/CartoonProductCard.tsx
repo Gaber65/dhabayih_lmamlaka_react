@@ -7,13 +7,14 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useUIStore } from '../../store/useUIStore';
-import { getProductImage } from '../../utils/productImages';
+import { getProductImage, DHABAYIH_LOGO } from '../../utils/productImages';
 
 export const CartoonProductCard: React.FC<{
   product: Product;
   className?: string;
+  viewMode?: 'grid' | 'list';
   onQuickView?: (product: Product) => void;
-}> = ({ product, className = '', onQuickView }) => {
+}> = ({ product, className = '', viewMode = 'grid', onQuickView }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
@@ -80,6 +81,123 @@ export const CartoonProductCard: React.FC<{
     });
   };
 
+  if (viewMode === 'list') {
+    return (
+      <div
+        onClick={() => navigate(`/product/${product.id}`)}
+        className={`group bg-white rounded-2xl border border-slate-200 hover:border-brand-500 hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col sm:flex-row items-center p-3 sm:p-4 gap-4 cursor-pointer relative ${className}`}
+      >
+        {/* Product Image Area in List View */}
+        <div className="relative w-full sm:w-48 h-44 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden bg-slate-100">
+          <img
+            src={imageUrl}
+            alt={displayName}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = DHABAYIH_LOGO;
+            }}
+          />
+
+          {/* Discount / Category Badge */}
+          <div className="absolute top-2 start-2 flex flex-col gap-1 z-10 pointer-events-none">
+            {product.isOnOffer && (
+              <span className="bg-brand-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                {product.discountTag || 'عرض خاص'}
+              </span>
+            )}
+            {product.categoryName && (
+              <span className="bg-slate-900/80 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                {product.categoryName}
+              </span>
+            )}
+          </div>
+
+          {/* Favorite Heart Button */}
+          <button
+            onClick={handleFavoriteClick}
+            title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+            className="absolute top-2 end-2 z-10 w-7 h-7 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-brand-500 flex items-center justify-center shadow-md transition-all cursor-pointer active:scale-90"
+          >
+            <Heart className={`w-3.5 h-3.5 transition-colors ${isFav ? 'text-brand-500 fill-brand-500' : 'text-slate-600'}`} />
+          </button>
+        </div>
+
+        {/* Card Info in List View */}
+        <div className="flex-1 w-full flex flex-col justify-between space-y-2">
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="text-sm sm:text-base font-black text-slate-900 line-clamp-1 group-hover:text-brand-500 transition-colors">
+                {displayName}
+              </h4>
+            </div>
+
+            {product.description && (
+              <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                {product.description}
+              </p>
+            )}
+
+            {/* Specs / Badges */}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium mt-2">
+              {product.weight ? (
+                <span className="bg-slate-100 px-2.5 py-0.5 rounded-lg text-[11px] font-bold text-slate-700">
+                  الوزن: {product.weight}
+                </span>
+              ) : (
+                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                  <span>طازج ذبح اليوم</span>
+                </span>
+              )}
+              <span className="text-slate-300">•</span>
+              <span className="text-[11px] text-slate-600 font-medium">فحص بيطري معتمد</span>
+            </div>
+          </div>
+
+          {/* Bottom Bar: Price and Actions */}
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-base sm:text-xl font-black text-slate-900 font-mono">
+                  {product.price.toLocaleString('en-US')}
+                </span>
+                <span className="text-xs font-bold text-slate-600">ر.س</span>
+              </div>
+              {product.originalPrice && product.originalPrice > product.price && (
+                <span className="text-[11px] text-slate-400 line-through font-mono block">
+                  {product.originalPrice.toLocaleString('en-US')} ر.س
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {onQuickView && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQuickView(product);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>معاينة</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleQuickAdd}
+                className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-black text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>إضافة</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -94,8 +212,7 @@ export const CartoonProductCard: React.FC<{
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
           loading="lazy"
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src =
-              '/images/onboarding/butchery.jpg';
+            (e.currentTarget as HTMLImageElement).src = DHABAYIH_LOGO;
           }}
         />
 

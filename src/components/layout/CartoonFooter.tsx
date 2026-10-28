@@ -63,10 +63,10 @@ export const CartoonFooter: React.FC = () => {
           <div className="space-y-3">
             <h5 className="text-sm font-bold text-white">{t('meat_types', 'أنواع الذبائح')}</h5>
             <ul className="space-y-2 text-slate-400 font-medium">
-              <li><Link to="/categories?cat=1" className="hover:text-white transition">{t('nuaimi_local', 'خروف نعيمي بلدي')}</Link></li>
-              <li><Link to="/categories?cat=2" className="hover:text-white transition">{t('harri_fresh', 'خروف حري طازج')}</Link></li>
-              <li><Link to="/categories?cat=3" className="hover:text-white transition">{t('teos_local', 'تيس عارضي بلدي')}</Link></li>
-              <li><Link to="/categories" className="hover:text-white transition">{t('veal_camel', 'عجل بلدي وحاشي')}</Link></li>
+              <li><Link to="/categories?q=نعيمي" className="hover:text-white transition">{t('nuaimi_local', 'خروف نعيمي بلدي')}</Link></li>
+              <li><Link to="/categories?q=حري" className="hover:text-white transition">{t('harri_fresh', 'خروف حري طازج')}</Link></li>
+              <li><Link to="/categories?q=تيس" className="hover:text-white transition">{t('teos_local', 'تيس عارضي بلدي')}</Link></li>
+              <li><Link to="/categories?q=عجل وحاشي" className="hover:text-white transition">{t('veal_camel', 'عجل بلدي وحاشي')}</Link></li>
               <li><Link to="/offers" className="hover:text-white transition">{t('flash_deals', 'عروض وخصومات اليوم')}</Link></li>
             </ul>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ZoomIn, Sparkles } from 'lucide-react';
-import { getProductImage } from '../../utils/productImages';
+import { getProductImage, DHABAYIH_LOGO } from '../../utils/productImages';
 
 interface ProductGalleryProps {
   images?: string[];
@@ -31,8 +31,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
           alt={productName}
           className="w-full h-full object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src =
-              '/images/onboarding/butchery.jpg';
+            (e.currentTarget as HTMLImageElement).src = DHABAYIH_LOGO;
           }}
         />
 

@@ -123,7 +123,12 @@ export const LoginPage: React.FC = () => {
         title: t('welcome_back', 'مرحباً بك!'),
         message: t('login_success', 'تم تسجيل الدخول بنجاح'),
       });
-      navigate('/home');
+      const isAdmin = (res.user as any)?.role === 'admin' || (res.user as any)?.userType === 'admin' || (res.user as any)?.isAdmin === true;
+      if (isAdmin) {
+        navigate('/admin');
+      } else {
+        navigate('/home');
+      }
     } catch (err: any) {
       addToast({
         type: 'error',

@@ -16,8 +16,22 @@ import { SearchPage } from '../pages/SearchPage';
 import { OffersPage } from '../pages/OffersPage';
 import { FavoritesPage } from '../pages/FavoritesPage';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage';
+import { AdminLayout } from '../admin/components/AdminLayout';
+import { AdminGuard } from '../admin/components/AdminGuard';
 
 export const router = createBrowserRouter([
+  {
+    path: '/admin',
+    element: (
+      <AdminGuard>
+        <AdminLayout />
+      </AdminGuard>
+    ),
+  },
+  {
+    path: '/admin-dashboard',
+    element: <Navigate to="/admin" replace />,
+  },
   {
     path: '/',
     element: <SplashPage />,

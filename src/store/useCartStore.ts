@@ -329,10 +329,23 @@ export const useCartStore = create<CartStore>()(
       applyCoupon: async (code: string) => {
         const upper = code.trim().toUpperCase();
         try {
-          await ordersApi.applyCoupon(upper);
+          const resData = await ordersApi.applyCoupon(upper);
+          const couponInfo = resData?.coupon || resData;
           const { cart } = get();
           const subtotal = cart?.subtotal || cart?.lines?.reduce((s, l) => s + l.lineTotal, 0) || 0;
-          const discount = Math.round(subtotal * 0.1);
+
+          let discount = 0;
+          if (couponInfo?.discount_type === 'percentage') {
+            const pct = Number(couponInfo.discount_value || 10);
+            discount = Math.round((subtotal * pct) / 100);
+            const maxDisc = Number(couponInfo.maximum_discount || 0);
+            if (maxDisc > 0) discount = Math.min(discount, maxDisc);
+          } else if (couponInfo?.discount_type === 'fixed') {
+            discount = Number(couponInfo.discount_value || 0);
+          } else {
+            discount = Math.round(subtotal * 0.1);
+          }
+
           const total = Math.max(0, subtotal - discount);
 
           set({

@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { User, AuthState } from '../types/auth.types';
 import { authApi } from '../api/auth';
 
@@ -9,46 +9,53 @@ interface AuthStore extends AuthState {
   initAuth: () => void;
 }
 
+const getInitialAuthState = (): AuthState => {
+  try {
+    const token = localStorage.getItem('dhabayih_access_token');
+    const refreshToken = localStorage.getItem('dhabayih_refresh_token');
+    const userStr = localStorage.getItem('dhabayih_user');
+    const isGuestStr = localStorage.getItem('dhabayih_is_guest');
+
+    if (token && userStr) {
+      const user = JSON.parse(userStr);
+      return {
+        user,
+        accessToken: token,
+        refreshToken,
+        isAuthenticated: true,
+        isGuest: false,
+        isLoading: false,
+      };
+    } else if (isGuestStr === 'true') {
+      return {
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        isGuest: true,
+        isLoading: false,
+      };
+    }
+  } catch {
+    // fallback
+  }
+
+  return {
+    user: null,
+    accessToken: null,
+    refreshToken: null,
+    isAuthenticated: false,
+    isGuest: false,
+    isLoading: false,
+  };
+};
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  accessToken: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  isGuest: false,
-  isLoading: true,
+  ...getInitialAuthState(),
 
   initAuth: () => {
-    try {
-      const token = localStorage.getItem('dhabayih_access_token');
-      const refreshToken = localStorage.getItem('dhabayih_refresh_token');
-      const userStr = localStorage.getItem('dhabayih_user');
-      const isGuestStr = localStorage.getItem('dhabayih_is_guest');
-
-      if (token && userStr) {
-        const user = JSON.parse(userStr);
-        set({
-          user,
-          accessToken: token,
-          refreshToken,
-          isAuthenticated: true,
-          isGuest: false,
-          isLoading: false,
-        });
-      } else if (isGuestStr === 'true') {
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          isGuest: true,
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false });
-      }
-    } catch {
-      set({ isLoading: false });
-    }
+    const state = getInitialAuthState();
+    set(state);
   },
 
   setAuth: (user: User, accessToken: string, refreshToken?: string) => {

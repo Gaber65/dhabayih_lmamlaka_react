@@ -119,10 +119,10 @@ export const CartoonHeader: React.FC = () => {
   const navCategories = [
     { label: t('home', 'الرئيسية'), path: '/home' },
     { label: t('all_sacrifices', 'جميع الذبائح'), path: '/categories' },
-    { label: t('nuaimi_local', 'نعيمي بلدي'), path: '/categories?cat=1' },
-    { label: t('harri_fresh', 'حري طازج'), path: '/categories?cat=2' },
-    { label: t('teos_local', 'تيوس بلدية'), path: '/categories?cat=3' },
-    { label: t('veal_camel', 'عجل وحاشي'), path: '/categories' },
+    { label: t('nuaimi_local', 'نعيمي بلدي'), path: '/categories?q=نعيمي' },
+    { label: t('harri_fresh', 'حري طازج'), path: '/categories?q=حري' },
+    { label: t('teos_local', 'تيوس بلدية'), path: '/categories?q=تيس' },
+    { label: t('veal_camel', 'عجل وحاشي'), path: '/categories?q=عجل وحاشي' },
     { label: t('flash_deals', 'عروض اليوم'), path: '/offers', highlight: true },
     { label: t('favorites', 'المفضلة'), path: '/favorites' },
     { label: t('track_orders', 'تتبع الطلب'), path: '/orders' },
@@ -360,7 +360,10 @@ export const CartoonHeader: React.FC = () => {
               </button>
 
               {navCategories.map((cat, idx) => {
-                const isActive = location.pathname === cat.path;
+                const currentFull = location.pathname + (location.search || '');
+                const isActive = cat.path.includes('?')
+                  ? currentFull === cat.path
+                  : location.pathname === cat.path && !location.search;
                 return (
                   <Link
                     key={idx}

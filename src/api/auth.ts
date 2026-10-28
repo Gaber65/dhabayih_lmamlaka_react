@@ -35,6 +35,7 @@ export const authApi = {
     });
     const data = response.data?.data || response.data;
     const userObj = data.user || data;
+    const isAdm = userObj.user_type === 'admin' || data.user_type === 'admin' || userObj.role === 'admin';
     const user: User = {
       id: userObj.id ?? 1,
       name: userObj.name || (identifier.includes('@') ? identifier.split('@')[0] : identifier),
@@ -42,7 +43,9 @@ export const authApi = {
       phone: userObj.phone || (!identifier.includes('@') ? identifier : ''),
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      userType: userObj.user_type || data.user_type || 'customer',
+      userType: isAdm ? 'admin' : (userObj.user_type || 'customer'),
+      role: isAdm ? 'admin' : 'customer',
+      isAdmin: isAdm,
       avatarUrl: userObj.avatar_url || '',
     };
     return { user, accessToken: data.access_token, refreshToken: data.refresh_token };
@@ -58,6 +61,7 @@ export const authApi = {
     });
     const data = response.data?.data || response.data;
     const userObj = data.user || data;
+    const isAdm = userObj.user_type === 'admin' || data.user_type === 'admin' || userObj.role === 'admin';
     const user: User = {
       id: userObj.id ?? 1,
       name: userObj.name || (identifier.includes('@') ? identifier.split('@')[0] : identifier),
@@ -65,7 +69,9 @@ export const authApi = {
       phone: userObj.phone || (!identifier.includes('@') ? identifier : ''),
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      userType: userObj.user_type || data.user_type || 'customer',
+      userType: isAdm ? 'admin' : (userObj.user_type || 'customer'),
+      role: isAdm ? 'admin' : 'customer',
+      isAdmin: isAdm,
       avatarUrl: userObj.avatar_url || '',
     };
     return { user, accessToken: data.access_token, refreshToken: data.refresh_token };

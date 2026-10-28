@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { catalogApi } from '../api/catalog';
@@ -7,9 +8,19 @@ import { CartoonProductCard } from '../components/product/CartoonProductCard';
 import { CartoonSkeleton } from '../components/common/CartoonLoadingState';
 import { CartoonEmptyState } from '../components/common/CartoonEmptyState';
 
+const normalizeArabic = (text: string) =>
+  (text || '')
+    .toLowerCase()
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F]/g, '')
+    .trim();
+
 export const SearchPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get('q') || searchParams.get('query') || '');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,8 +28,14 @@ export const SearchPage: React.FC = () => {
   const isAr = i18n.language === 'ar';
 
   const popularKeywords = isAr
-    ? ['نعيمي', 'حري', 'سواكني', 'عجل بلدي', 'حاشي', 'هرفي', 'تقطيع ثلاجة']
+    ? ['نعيمي بلدي', 'حري', 'سواكني', 'عجل بلدي', 'حاشي', 'هرفي', 'تقطيع ثلاجة']
     : ['Naimi', 'Hari', 'Sawkani', 'Veal', 'Camel', 'Harfi', 'Fridge Cut'];
+
+  // Sync query when URL search param changes
+  useEffect(() => {
+    const qParam = searchParams.get('q') || searchParams.get('query') || '';
+    setQuery(qParam);
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -26,10 +43,8 @@ export const SearchPage: React.FC = () => {
       try {
         const prods = await catalogApi.getProducts();
         setAllProducts(prods);
-        setFilteredProducts(prods);
       } catch {
         setAllProducts([]);
-        setFilteredProducts([]);
       } finally {
         setLoading(false);
       }
@@ -43,16 +58,30 @@ export const SearchPage: React.FC = () => {
       return;
     }
 
-    const q = query.toLowerCase().trim();
+    const words = normalizeArabic(query)
+      .split(/\s+/)
+      .filter((w) => w.length > 1 && !['و', 'في', 'من'].includes(w));
+
     const matches = allProducts.filter((p) => {
-      const name = (p.name || '').toLowerCase();
-      const nameAr = (p.nameAr || '').toLowerCase();
-      const desc = (p.description || '').toLowerCase();
-      return name.includes(q) || nameAr.includes(q) || desc.includes(q);
+      const text = normalizeArabic(
+        `${p.name || ''} ${p.nameAr || ''} ${p.description || ''} ${p.categoryName || ''}`
+      );
+      return words.length > 0
+        ? words.every((w) => text.includes(w))
+        : text.includes(normalizeArabic(query));
     });
 
     setFilteredProducts(matches);
   }, [query, allProducts]);
+
+  const handleQueryChange = (val: string) => {
+    setQuery(val);
+    if (val.trim()) {
+      setSearchParams({ q: val });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6 min-h-[70vh]">
@@ -63,7 +92,7 @@ export const SearchPage: React.FC = () => {
             type="text"
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             placeholder={t('search_placeholder', 'ابحث عن نعيمي، حري، حاشي، خيارات التقطيع...')}
             className="w-full bg-white border border-slate-200 focus:border-brand-500 rounded-2xl py-4 ps-12 pe-4 text-sm md:text-base font-bold text-slate-900 shadow-xs outline-none transition"
           />
@@ -76,7 +105,7 @@ export const SearchPage: React.FC = () => {
           {popularKeywords.map((kw) => (
             <button
               key={kw}
-              onClick={() => setQuery(kw)}
+              onClick={() => handleQueryChange(kw)}
               className="bg-slate-100 hover:bg-brand-50 hover:text-brand-600 border border-slate-200/80 px-3 py-1 rounded-lg transition cursor-pointer"
             >
               {kw}
@@ -112,7 +141,7 @@ export const SearchPage: React.FC = () => {
           title={t('search_no_results', { query }) || `لم نجد نتائج مطابقة لـ "${query}"`}
           description={t('search_no_results_desc', 'جرب البحث بكلمات أخرى أو تصفح قائمة الذبائح المتاحة.')}
           actionText={t('clear_search_btn', 'مسح البحث')}
-          onAction={() => setQuery('')}
+          onAction={() => handleQueryChange('')}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -139,6 +139,26 @@ export const ProfilePage: React.FC = () => {
 
           {/* Quick Nav Cards */}
           <div className="bg-white rounded-2xl border border-slate-200 p-3 shadow-xs space-y-1">
+            {((user as any)?.role === 'admin' || (user as any)?.userType === 'admin') && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 hover:bg-primary-100 transition cursor-pointer text-start border border-primary-200 dark:border-primary-800"
+              >
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-primary-600" />
+                  <div>
+                    <span className="text-xs md:text-sm font-black block">
+                      {isRtl ? 'لوحة تحكم الإدارة المركزية (ERP)' : 'Executive Admin Dashboard'}
+                    </span>
+                    <span className="text-[10px] text-primary-600 font-semibold">
+                      {isRtl ? 'إدارة المنتجات، التجهيز، الطلبات، والفروع' : 'Manage catalog, butchery, orders & branches'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold rtl:rotate-180">→</span>
+              </button>
+            )}
+
             <button
               onClick={() => navigate('/addresses')}
               className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer text-start"

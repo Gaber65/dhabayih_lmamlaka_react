@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ShieldCheck,
@@ -34,13 +34,15 @@ export const ProductDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { isAuthenticated } = useAuthStore();
   const { addToCart } = useCartStore();
   const { isFavorite, toggleFavorite } = useFavoritesStore();
   const { addToast } = useUIStore();
 
-
+  const initialPortion = searchParams.get('portion') || 'full';
+  const [selectedPortion, setSelectedPortion] = useState<string>(initialPortion);
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,128 @@ export const ProductDetailsPage: React.FC = () => {
     };
     fetchProduct();
   }, [id]);
+
+  const effectivePortions = useMemo(() => {
+    if (!product) return [];
+    if (product.portions && product.portions.length > 0) return product.portions;
+    if (
+      product.isCarcass ||
+      product.is_carcass ||
+      product.categoryId === 5 ||
+      product.name.includes('نعيمي') ||
+      product.name.includes('نجدي') ||
+      product.name.includes('حري') ||
+      product.name.includes('تيس')
+    ) {
+      const allSizes = product.sizes || [];
+      const fullSizes = allSizes.filter(
+        (s) => (s.portionType || s.portion_type || 'full') === 'full'
+      );
+      const halfSizes = allSizes.filter(
+        (s) => (s.portionType || s.portion_type) === 'half'
+      );
+      const quarterSizes = allSizes.filter(
+        (s) => (s.portionType || s.portion_type) === 'quarter'
+      );
+
+      const fullPrice = fullSizes.length > 0 ? fullSizes[0].price : product.price;
+      const halfPrice = halfSizes.length > 0 ? halfSizes[0].price : Math.round(fullPrice * 0.5);
+      const quarterPrice = quarterSizes.length > 0 ? quarterSizes[0].price : Math.round(fullPrice * 0.25);
+
+      return [
+        {
+          type: 'full',
+          name: isAr ? 'كامل' : 'Whole',
+          title: isAr ? `${product.name} كامل` : `Whole ${product.name}`,
+          subtitle: isAr ? 'ذبيحة كاملة مجهزة بالكامل' : 'Whole carcass freshly prepared',
+          imageUrl: product.imageUrl,
+          startingPrice: fullPrice,
+          sizeCount: fullSizes.length,
+        },
+        {
+          type: 'half',
+          name: isAr ? 'نصف' : 'Half',
+          title: isAr ? `نصف ${product.name}` : `Half ${product.name}`,
+          subtitle: isAr ? 'نصف ذبيحة طازج مقسوم بالطول' : 'Half carcass freshly cut lengthwise',
+          imageUrl: product.imageUrl,
+          startingPrice: halfPrice,
+          sizeCount: halfSizes.length,
+        },
+        {
+          type: 'quarter',
+          name: isAr ? 'ربع' : 'Quarter',
+          title: isAr ? `ربع ${product.name}` : `Quarter ${product.name}`,
+          subtitle: isAr ? 'ربع متكامل (كتف أو فخذ مع ضلوع)' : 'Quarter portion (shoulder or leg with ribs)',
+          imageUrl: product.imageUrl,
+          startingPrice: quarterPrice,
+          sizeCount: quarterSizes.length,
+        },
+      ];
+    }
+    return [];
+  }, [product, isAr]);
+
+  const filteredSizes = useMemo(() => {
+    if (!product || !product.sizes || product.sizes.length === 0) return [];
+    
+    // 1. Check if there are explicit matching sizes in product.sizes from Odoo
+    const matched = product.sizes.filter(
+      (s) => (s.portionType || s.portion_type || 'full') === selectedPortion
+    );
+    if (matched.length > 0) return matched;
+
+    // 2. If 'half' and no explicit sizes, compute half sizes dynamically
+    if (selectedPortion === 'half') {
+      const fullSizes = product.sizes.filter((s) => (s.portionType || s.portion_type || 'full') === 'full');
+      const base = fullSizes.length > 0 ? fullSizes : product.sizes;
+      return base.map((s) => ({
+        ...s,
+        id: s.id + 100000,
+        name: isAr ? `نصف ${s.name.replace(/^(كامل|نصف|ربع)\s*/, '')}` : `Half ${s.name}`,
+        portionType: 'half',
+        portion_type: 'half',
+        price: Math.round(s.price * 0.5),
+        calories: Math.round((s.calories || 243) * 0.5),
+        loyaltyPoints: Math.round((s.loyaltyPoints || s.loyalty_points || s.price * 0.5) * 0.5),
+        pointsPrice: Math.round((s.pointsPrice || s.points_price || s.price * 4) * 0.5),
+        subTitle: isAr ? 'نصف ذبيحة طازج' : 'Fresh half carcass',
+        weightRange: (s.weightRange || s.weight_range) ? `${s.weightRange || s.weight_range} (نصف)` : undefined,
+      }));
+    }
+
+    // 3. If 'quarter' and no explicit sizes, compute quarter sizes dynamically
+    if (selectedPortion === 'quarter') {
+      const fullSizes = product.sizes.filter((s) => (s.portionType || s.portion_type || 'full') === 'full');
+      const base = fullSizes.length > 0 ? fullSizes : product.sizes;
+      return base.map((s) => ({
+        ...s,
+        id: s.id + 200000,
+        name: isAr ? `ربع ${s.name.replace(/^(كامل|نصف|ربع)\s*/, '')}` : `Quarter ${s.name}`,
+        portionType: 'quarter',
+        portion_type: 'quarter',
+        price: Math.round(s.price * 0.25),
+        calories: Math.round((s.calories || 243) * 0.25),
+        loyaltyPoints: Math.round((s.loyaltyPoints || s.loyalty_points || s.price * 0.5) * 0.25),
+        pointsPrice: Math.round((s.pointsPrice || s.points_price || s.price * 4) * 0.25),
+        subTitle: isAr ? 'ربع ذبيحة طازج' : 'Fresh quarter carcass',
+        weightRange: (s.weightRange || s.weight_range) ? `${s.weightRange || s.weight_range} (ربع)` : undefined,
+      }));
+    }
+
+    return product.sizes.filter((s) => (s.portionType || s.portion_type || 'full') === 'full');
+  }, [product, selectedPortion, isAr]);
+
+  useEffect(() => {
+    if (filteredSizes.length > 0) {
+      const isStillValid = filteredSizes.some((s) => s.id === selectedSizeId);
+      if (!isStillValid) {
+        const defaultSize = filteredSizes.find((s) => s.isDefault || s.is_default) || filteredSizes[0];
+        setSelectedSizeId(defaultSize.id);
+      }
+    } else {
+      setSelectedSizeId(null);
+    }
+  }, [filteredSizes, selectedSizeId]);
 
   if (loading) {
     return <CartoonLoadingState message={t('loading_product_details', 'جاري تحميل تفاصيل الذبيحة وخيارات التجهيز...')} />;
@@ -136,13 +260,37 @@ export const ProductDetailsPage: React.FC = () => {
     );
   };
 
-  const selectedSize = product.sizes?.find((s) => s.id === selectedSizeId);
-  const basePrice = selectedSize ? selectedSize.price : product.price;
-  const originalPrice = product.originalPrice;
+  const portionFactor = selectedPortion === 'half' ? 0.5 : selectedPortion === 'quarter' ? 0.25 : 1.0;
+  const selectedSize = filteredSizes.find((s) => s.id === selectedSizeId) || filteredSizes[0];
+  const basePrice = selectedSize ? selectedSize.price : Math.round(product.price * portionFactor);
+  const originalPrice = selectedSize?.originalPrice || (product.originalPrice ? Math.round(product.originalPrice * portionFactor) : undefined);
   const totalPrice = basePrice * quantity;
-  const calories = selectedSize?.calories || product.calories || 243;
+  const calories = selectedSize?.calories || Math.round((product.calories || 243) * portionFactor);
   const loyaltyPoints = selectedSize?.loyaltyPoints || selectedSize?.loyalty_points || Math.round(basePrice * 0.5);
   const pointsPrice = selectedSize?.pointsPrice || selectedSize?.points_price || Math.round(basePrice * 4);
+
+  const currentDisplayWeight = (() => {
+    if (selectedSize) {
+      const wr = selectedSize.weightRange || selectedSize.weight_range;
+      if (wr) return wr.includes('كجم') || wr.includes('kg') ? wr : `${wr} ${isAr ? 'كجم' : 'kg'}`;
+      if (selectedSize.minWeight && selectedSize.maxWeight) {
+        return `${selectedSize.minWeight} - ${selectedSize.maxWeight} ${isAr ? 'كجم' : 'kg'}`;
+      }
+      if (selectedSize.subTitle && (selectedSize.subTitle.includes('كجم') || selectedSize.subTitle.includes('kg'))) {
+        return selectedSize.subTitle;
+      }
+    }
+    if (product?.weight) {
+      const numWeight = parseFloat(product.weight);
+      if (!isNaN(numWeight) && numWeight > 0) {
+        if (selectedPortion === 'half') return `${Math.round(numWeight * 0.5 * 10) / 10} ${isAr ? 'كجم (نصف)' : 'kg (Half)'}`;
+        if (selectedPortion === 'quarter') return `${Math.round(numWeight * 0.25 * 10) / 10} ${isAr ? 'كجم (ربع)' : 'kg (Quarter)'}`;
+        return `${numWeight} ${isAr ? 'كجم' : 'kg'}`;
+      }
+      return product.weight.includes('كجم') || product.weight.includes('kg') ? product.weight : `${product.weight} ${isAr ? 'كجم' : 'kg'}`;
+    }
+    return isAr ? '12 - 15 كجم' : '12 - 15 kg';
+  })();
 
   const handleAddToCart = async (goToCheckout: boolean = false) => {
 
@@ -299,6 +447,11 @@ export const ProductDetailsPage: React.FC = () => {
                     <span>{basePrice.toLocaleString('en-US')}</span>
                     <span className="text-xs font-bold font-sans">ر.س</span>
                   </div>
+                  {originalPrice && originalPrice > basePrice && (
+                    <div className="text-xs text-slate-400 line-through font-mono mt-0.5">
+                      {originalPrice.toLocaleString('en-US')} ر.س
+                    </div>
+                  )}
                   <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
                     {t('price_vat_inclusive', 'السعر شامل للضريبة')}
                   </span>
@@ -312,6 +465,32 @@ export const ProductDetailsPage: React.FC = () => {
                   </div>
                   <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
                     {t('points_price_label', 'سعر المنتج بالنقاط')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Dynamic Weight Badge */}
+              <div className="mt-3.5 bg-gradient-to-r from-amber-50 to-orange-50/70 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/90 dark:border-amber-900/40 rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center flex-shrink-0 border border-amber-200 dark:border-amber-900/60">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">
+                      {isAr ? 'الوزن التقريبي بعد الذبح والتجهيز' : 'Approximate Carcass Weight'}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      {selectedSize?.name
+                        ? `${isAr ? 'مخصص لحجم' : 'For'} (${selectedSize.name})`
+                        : isAr
+                        ? 'حسب الحجم والتقسيم المختار'
+                        : 'Based on selection'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-end">
+                  <span className="text-sm md:text-base font-black text-amber-700 dark:text-amber-400 font-mono tracking-tight bg-white dark:bg-slate-900 px-3 py-1 rounded-xl border border-amber-200 dark:border-amber-900/60 shadow-2xs inline-block">
+                    {currentDisplayWeight}
                   </span>
                 </div>
               </div>
@@ -349,8 +528,54 @@ export const ProductDetailsPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Carcass Portion Switcher (كامل, نصف, ربع) */}
+            {effectivePortions.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-900">
+                    {t('carcass_portions_title', 'تقسيم الذبيحة')}
+                  </h3>
+                  <span className="text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-0.5 rounded-full">
+                    {effectivePortions.find((p) => p.type === selectedPortion)?.name || 'كامل'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/80">
+                  {effectivePortions.map((portion) => {
+                    const isSelected = selectedPortion === portion.type;
+                    return (
+                      <button
+                        key={portion.type}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPortion(portion.type);
+                          setSearchParams({ portion: portion.type }, { replace: true });
+                        }}
+                        className={`py-2.5 px-2 rounded-xl text-center transition-all cursor-pointer font-bold text-xs ${
+                          isSelected
+                            ? 'bg-brand-600 text-white shadow-md'
+                            : 'bg-white/70 text-slate-700 hover:bg-white hover:text-slate-900'
+                        }`}
+                      >
+                        <div className="text-sm font-black">{portion.name}</div>
+                        {portion.startingPrice > 0 && (
+                          <div
+                            className={`text-[10px] mt-0.5 ${
+                              isSelected ? 'text-white/90' : 'text-brand-600 font-semibold'
+                            }`}
+                          >
+                            من {portion.startingPrice.toLocaleString('en-US')} ر.س
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Carcass Sizes (الحجم) Section matching screenshot */}
-            {product.sizes && product.sizes.length > 0 && (
+            {filteredSizes.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black text-slate-900">
@@ -364,15 +589,25 @@ export const ProductDetailsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  {product.sizes.map((size) => {
+                  {filteredSizes.map((size) => {
                     const isSelected = size.id === selectedSizeId;
+                    const rawWeight =
+                      size.weightRange ||
+                      size.weight_range ||
+                      (size.minWeight && size.maxWeight ? `${size.minWeight} - ${size.maxWeight} ${isAr ? 'كجم' : 'kg'}` : '') ||
+                      (product?.weight ? (
+                        selectedPortion === 'half' ? `${Math.round(parseFloat(product.weight) * 0.5 * 10) / 10} ${isAr ? 'كجم (نصف)' : 'kg (Half)'}` :
+                        selectedPortion === 'quarter' ? `${Math.round(parseFloat(product.weight) * 0.25 * 10) / 10} ${isAr ? 'كجم (ربع)' : 'kg (Quarter)'}` :
+                        `${product.weight} ${isAr ? 'كجم' : 'kg'}`
+                      ) : '');
+                    const subText = size.subTitle || size.sub_title;
                     return (
                       <div
                         key={size.id}
                         onClick={() => setSelectedSizeId(size.id)}
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                           isSelected
-                            ? 'bg-brand-50/40 border-brand-500 shadow-xs'
+                            ? 'bg-brand-50/40 border-brand-500 shadow-xs ring-1 ring-brand-500/20'
                             : 'bg-white border-slate-200/90 hover:border-slate-300'
                         }`}
                       >
@@ -393,11 +628,19 @@ export const ProductDetailsPage: React.FC = () => {
                             <span className="text-xs md:text-sm font-black text-slate-800 block">
                               {size.name}
                             </span>
-                            {size.subTitle && (
-                              <span className="text-[11px] font-bold text-amber-600 block">
-                                {size.subTitle}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              {rawWeight && (
+                                <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md inline-flex items-center gap-1 border border-amber-200/60 font-mono">
+                                  <Scale className="w-3 h-3 text-amber-600" />
+                                  <span>{rawWeight}</span>
+                                </span>
+                              )}
+                              {subText && subText !== rawWeight && (
+                                <span className="text-[11px] font-semibold text-slate-500">
+                                  {subText}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -406,6 +649,11 @@ export const ProductDetailsPage: React.FC = () => {
                             {size.price.toLocaleString('en-US')}
                           </span>
                           <span className="text-[10px] font-bold text-slate-500 mr-1">ر.س</span>
+                          {size.originalPrice && size.originalPrice > size.price && (
+                            <span className="text-[10px] text-slate-400 line-through font-mono block">
+                              {size.originalPrice.toLocaleString('en-US')} ر.س
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -414,18 +662,16 @@ export const ProductDetailsPage: React.FC = () => {
               </div>
             )}
 
-            {/* 1. Real Product Weight Specs */}
-            {product.weight && (
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                  <Scale className="w-4 h-4 text-brand-500" />
-                  <span>{t('approx_weight_label', 'الوزن التقديري للذبيحة:')}</span>
-                </div>
-                <span className="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-xl">
-                  {product.weight}
-                </span>
+            {/* 1. Real Dynamic Carcass Weight Specs */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                <Scale className="w-4 h-4 text-brand-500" />
+                <span>{t('approx_weight_label', 'الوزن التقديري للذبيحة:')}</span>
               </div>
-            )}
+              <span className="font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-xl font-mono">
+                {currentDisplayWeight}
+              </span>
+            </div>
 
             {/* 2. Cutting Options */}
             {cuttingOpts.length > 0 && (

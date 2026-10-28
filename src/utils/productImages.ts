@@ -1,15 +1,18 @@
 import { Product } from '../types/product.types';
+import appLogo from '../assets/app_logo.png';
+
+export const DHABAYIH_LOGO = appLogo;
 
 const MEAT_IMAGES = {
   mincedBeef: 'https://images.unsplash.com/photo-1588168333986-5078d3ae3976?auto=format&fit=crop&w=800&q=80',
   beefSteak: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=800&q=80',
   lambRibs: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
-  lambGeneral: '/images/onboarding/butchery.jpg',
+  lambGeneral: appLogo,
   chickenBreast: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?auto=format&fit=crop&w=800&q=80',
   chickenGeneral: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=800&q=80',
   camel: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
   goat: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80',
-  defaultMeat: '/images/onboarding/butchery.jpg',
+  defaultMeat: appLogo,
 };
 
 export function getProductImage(product?: Partial<Product> | null): string {

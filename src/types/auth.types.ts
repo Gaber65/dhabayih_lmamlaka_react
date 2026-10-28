@@ -1,4 +1,4 @@
-﻿export interface User {
+export interface User {
   id: number;
   name: string;
   email: string;
@@ -6,6 +6,9 @@
   accessToken?: string;
   refreshToken?: string;
   userType?: string;
+  role?: string;
+  isAdmin?: boolean;
+  is_admin?: boolean;
   avatarUrl?: string;
 }
 

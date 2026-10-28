@@ -65,6 +65,22 @@ export interface Product {
   hasSizes?: boolean;
   has_sizes?: boolean;
   calories?: number;
+  isCarcass?: boolean;
+  is_carcass?: boolean;
+  portions?: ProductPortion[];
+}
+
+export interface ProductPortion {
+  type: string;
+  name: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  image_url?: string;
+  startingPrice: number;
+  starting_price?: number;
+  sizeCount?: number;
+  size_count?: number;
 }
 
 export interface ProductSize {
@@ -72,7 +88,17 @@ export interface ProductSize {
   name: string;
   subTitle?: string;
   sub_title?: string;
+  portionType?: string;
+  portion_type?: string;
+  weightRange?: string;
+  weight_range?: string;
+  minWeight?: number;
+  min_weight?: number;
+  maxWeight?: number;
+  max_weight?: number;
   price: number;
+  originalPrice?: number;
+  offerPrice?: number;
   calories?: number;
   loyaltyPoints?: number;
   loyalty_points?: number;

@@ -8,7 +8,9 @@ export const APP_CONFIG = {
    * Base URL for backend API requests (Odoo 17 REST API)
    */
   apiBaseUrl: (
-    import.meta.env.VITE_API_BASE_URL || 'https://api.zbayhalmmlkh.network'
+    import.meta.env.VITE_API_BASE_URL !== undefined && import.meta.env.VITE_API_BASE_URL !== ''
+      ? import.meta.env.VITE_API_BASE_URL
+      : (import.meta.env.DEV ? '' : 'https://api.zbayhalmmlkh.network')
   ).replace(/\/+$/, ''),
 
   /**

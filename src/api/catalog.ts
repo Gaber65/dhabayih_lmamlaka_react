@@ -55,7 +55,17 @@ const mapProduct = (item: any): Product => {
           name: s.name || '',
           subTitle: s.sub_title || s.subTitle || '',
           sub_title: s.sub_title || s.subTitle || '',
+          portionType: s.portion_type || s.portionType || 'full',
+          portion_type: s.portion_type || s.portionType || 'full',
+          weightRange: s.weight_range || s.weightRange || (s.min_weight && s.max_weight ? `${s.min_weight} - ${s.max_weight} كجم` : ''),
+          weight_range: s.weight_range || s.weightRange || (s.min_weight && s.max_weight ? `${s.min_weight} - ${s.max_weight} كجم` : ''),
+          minWeight: s.min_weight ? Number(s.min_weight) : undefined,
+          min_weight: s.min_weight ? Number(s.min_weight) : undefined,
+          maxWeight: s.max_weight ? Number(s.max_weight) : undefined,
+          max_weight: s.max_weight ? Number(s.max_weight) : undefined,
           price: Number(s.price || 0),
+          originalPrice: s.original_price ? Number(s.original_price) : undefined,
+          offerPrice: s.offer_price ? Number(s.offer_price) : undefined,
           calories: s.calories ? Number(s.calories) : 243,
           loyaltyPoints: Number(s.loyalty_points || s.loyaltyPoints || 0),
           loyalty_points: Number(s.loyalty_points || s.loyaltyPoints || 0),
@@ -68,6 +78,19 @@ const mapProduct = (item: any): Product => {
       : [],
     hasSizes: Boolean(item.has_sizes || item.hasSizes || (item.sizes && item.sizes.length > 0)),
     calories: item.calories ? Number(item.calories) : 243,
+    isCarcass: Boolean(item.is_carcass ?? item.isCarcass ?? true),
+    is_carcass: Boolean(item.is_carcass ?? item.isCarcass ?? true),
+    portions: Array.isArray(item.portions)
+      ? item.portions.map((p: any) => ({
+          type: p.type || 'full',
+          name: p.name || (p.type === 'half' ? 'نصف' : p.type === 'quarter' ? 'ربع' : 'كامل'),
+          title: p.title || '',
+          subtitle: p.subtitle || '',
+          imageUrl: normalizeImageUrl(p.image_url || p.imageUrl || item.main_image_url || item.image_url),
+          startingPrice: Number(p.starting_price || p.startingPrice || 0),
+          sizeCount: Number(p.size_count || p.sizeCount || 0),
+        }))
+      : undefined,
   };
 };
 
@@ -133,7 +156,7 @@ export const catalogApi = {
 
   searchProducts: async (query: string): Promise<Product[]> => {
     try {
-      const response = await apiClient.get(ServerStrings.search(query));
+      const response = await apiClient.get(ServerStrings.products, { params: { search: query } });
       const list = extractList(response.data);
       if (list.length > 0) {
         return list.map(mapProduct);
@@ -142,11 +165,10 @@ export const catalogApi = {
 
     const prods = await catalogApi.getProducts();
     const q = query.toLowerCase().trim();
-    return prods.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(q) ||
-        p.nameAr?.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q)
-    );
+    const words = q.split(/\s+/).filter((w) => w.length > 1);
+    return prods.filter((p) => {
+      const name = `${p.name || ''} ${p.nameAr || ''} ${p.description || ''}`.toLowerCase();
+      return words.length > 0 ? words.every((w) => name.includes(w)) : name.includes(q);
+    });
   },
 };

@@ -112,12 +112,12 @@ export const ordersApi = {
     await apiClient.post(ServerStrings.receiveOrder(orderId));
   },
 
-  applyCoupon: async (code: string, orderId?: number): Promise<string> => {
+  applyCoupon: async (code: string, orderId?: number): Promise<any> => {
     const response = await apiClient.post(ServerStrings.applyCoupon, {
       code,
       ...(orderId ? { order_id: orderId } : {}),
     });
-    return response.data?.message || 'Coupon applied';
+    return response.data?.data || response.data;
   },
 
   removeCoupon: async (orderId?: number): Promise<string> => {
