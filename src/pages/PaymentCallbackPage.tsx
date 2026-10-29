@@ -10,7 +10,7 @@ export const PaymentCallbackPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { clearCart } = useCartStore();
+  const { clearCart, fetchCart } = useCartStore();
 
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -86,6 +86,21 @@ export const PaymentCallbackPage: React.FC = () => {
         }, 2200);
       };
 
+      // Helper function to handle cancelled or failed payment
+      const handleFailure = async (msg: string) => {
+        if (!isMounted) return;
+        setStatus('failed');
+        setErrorMessage(msg);
+        if (effectiveOrderId) {
+          try {
+            await ordersApi.cancelOrder(effectiveOrderId);
+          } catch (_) {}
+        }
+        try {
+          await fetchCart();
+        } catch (_) {}
+      };
+
       // 3. Fallback flow: If paymentId is missing or status is paid without an ID
       if (!paymentId) {
         if (effectiveOrderId) {
@@ -98,6 +113,7 @@ export const PaymentCallbackPage: React.FC = () => {
                 orderDetail &&
                 (orderDetail.paymentStatus === 'paid' ||
                   orderDetail.state === 'confirmed' ||
+                  orderDetail.state === 'sale' ||
                   orderDetail.state === 'preparing' ||
                   orderDetail.state === 'delivering')
               ) {
@@ -122,15 +138,12 @@ export const PaymentCallbackPage: React.FC = () => {
           }
         }
 
-        if (isMounted) {
-          setStatus('failed');
-          setErrorMessage(
-            t(
-              'payment_canceled_or_invalid',
-              'لم يتم العثور على مرجع عملية الدفع أو تم إلغاء العملية قبل اكتمالها.'
-            )
-          );
-        }
+        await handleFailure(
+          t(
+            'payment_canceled_or_invalid',
+            'لم يتم العثور على مرجع عملية الدفع أو تم إلغاء العملية قبل اكتمالها.'
+          )
+        );
         return;
       }
 
@@ -139,14 +152,28 @@ export const PaymentCallbackPage: React.FC = () => {
         let result = await ordersApi.verifyPayment(effectiveOrderId, paymentId);
 
         // If not successful on first attempt, retry once after 1.5s
-        if (!result || (!result.success && result.paymentStatus !== 'paid' && result.state !== 'confirmed')) {
+        if (
+          !result ||
+          (!result.success &&
+            result.paymentStatus !== 'paid' &&
+            result.state !== 'confirmed' &&
+            result.state !== 'sale' &&
+            (result as any).status !== 'paid')
+        ) {
           await new Promise((res) => setTimeout(res, 1500));
           result = await ordersApi.verifyPayment(effectiveOrderId, paymentId);
         }
 
         if (!isMounted) return;
 
-        if (result && (result.success || result.paymentStatus === 'paid' || result.state === 'confirmed')) {
+        if (
+          result &&
+          (result.success ||
+            result.paymentStatus === 'paid' ||
+            result.state === 'confirmed' ||
+            result.state === 'sale' ||
+            (result as any).status === 'paid')
+        ) {
           handleSuccess({
             ...savedOrder,
             ...result,
@@ -154,16 +181,14 @@ export const PaymentCallbackPage: React.FC = () => {
             orderNumber: result.orderNumber || savedOrder?.orderNumber,
           });
         } else {
-          setStatus('failed');
-          setErrorMessage(
+          await handleFailure(
             result?.message ||
               t('payment_declined_msg', 'تم رفض عملية الدفع أو لم تكتمل بنجاح من قبل البنك المصدر.')
           );
         }
       } catch (err: any) {
         if (!isMounted) return;
-        setStatus('failed');
-        setErrorMessage(
+        await handleFailure(
           err.response?.data?.message ||
             err.message ||
             t('payment_verification_error', 'حدث خطأ أثناء التحقق من حالة الدفع مع بوابة ميسر.')
@@ -176,7 +201,7 @@ export const PaymentCallbackPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, navigate, clearCart, t]);
+  }, [searchParams, navigate, clearCart, fetchCart, t]);
 
   return (
     <div className="min-h-[75vh] flex items-center justify-center py-12 px-4">

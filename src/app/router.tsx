@@ -15,6 +15,7 @@ import { ProfilePage } from '../pages/ProfilePage';
 import { SearchPage } from '../pages/SearchPage';
 import { OffersPage } from '../pages/OffersPage';
 import { FavoritesPage } from '../pages/FavoritesPage';
+import { PrivacyPolicyPage } from '../pages/PrivacyPolicyPage';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage';
 import { AdminLayout } from '../admin/components/AdminLayout';
 import { AdminGuard } from '../admin/components/AdminGuard';
@@ -112,6 +113,18 @@ export const router = createBrowserRouter([
         element: <AdminDashboardPage />,
       },
     ],
+  },
+  {
+    path: '/privacy-policy',
+    element: <PrivacyPolicyPage />,
+  },
+  {
+    path: '/terms',
+    element: <PrivacyPolicyPage />,
+  },
+  {
+    path: '/privacy',
+    element: <PrivacyPolicyPage />,
   },
   {
     path: '*',

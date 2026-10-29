@@ -400,13 +400,13 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Push Announcement CTA Card */}
-      <div className="bg-gradient-to-r from-primary-900 to-indigo-950 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-            <Bell className="w-8 h-8 text-primary-400" />
+      <div className="bg-gradient-to-r from-primary-900 to-indigo-950 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 bg-white/10 rounded-2xl backdrop-blur-md shrink-0">
+            <Bell className="w-6 h-6 sm:w-8 sm:h-8 text-primary-400" />
           </div>
           <div>
-            <h2 className="text-xl font-black">
+            <h2 className="text-lg sm:text-xl font-black">
               {language === 'ar' ? 'مركز التسويق وحملات الإشعارات' : 'Marketing & Broadcast Campaigns'}
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-xl">
@@ -417,20 +417,20 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="w-full sm:w-auto flex items-center gap-2">
           <button
             onClick={() => handleTabChange('notifications')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-primary-900 font-bold text-xs shadow-md hover:bg-slate-100 transition-all cursor-pointer"
+            className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-primary-900 font-bold text-xs sm:text-sm shadow-md hover:bg-slate-100 transition-all cursor-pointer"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4 shrink-0" />
             <span>{language === 'ar' ? 'إرسال إشعار فوري' : 'Send Push Alert'}</span>
           </button>
         </div>
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {[
             { id: 'offers', labelAr: 'العروض الترويجية والباقات', labelEn: 'Offers & Bundles', count: offers.length, icon: Tag },
             { id: 'banners', labelAr: 'البنرات الإعلانية', labelEn: 'Banners', count: banners.length, icon: ImageIcon },
@@ -443,12 +443,12 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id as MarketingTab)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all cursor-pointer ${isSelected
+                className={`min-h-[44px] flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 transition-all cursor-pointer ${isSelected
                     ? 'bg-primary-600 text-white shadow-sm font-bold'
                     : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-800'
                   }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 shrink-0" />
                 <span>{language === 'ar' ? tab.labelAr : tab.labelEn}</span>
                 {tab.count !== null && (
                   <span
@@ -470,9 +470,9 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
               else if (activeTab === 'banners') handleOpenBannerModal();
               else if (activeTab === 'coupons') handleOpenCouponModal();
             }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold shadow-sm"
+            className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>
               {activeTab === 'offers' && (language === 'ar' ? 'إضافة عرض أو باقة' : 'New Offer / Bundle')}
               {activeTab === 'banners' && (language === 'ar' ? 'إضافة بنر' : 'New Banner')}
@@ -583,7 +583,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenOfferModal(offer)}
-                        className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-lg transition-colors cursor-pointer"
+                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors cursor-pointer"
                         title={language === 'ar' ? 'تعديل' : 'Edit'}
                       >
                         <Edit2 className="w-4 h-4" />
@@ -599,7 +599,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                             }
                           });
                         }}
-                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                         title={language === 'ar' ? 'حذف' : 'Delete'}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -615,7 +615,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       {/* TAB 2: Banners */}
       {!loading && !error && activeTab === 'banners' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
           {banners.map((banner) => (
             <div
               key={banner.id}
@@ -644,8 +644,8 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">{banner.title}</h4>
                   {banner.link && (
                     <p className="text-xs text-primary-600 dark:text-primary-400 mt-1 truncate flex items-center gap-1">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>{banner.link}</span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{banner.link}</span>
                     </p>
                   )}
                 </div>
@@ -659,7 +659,8 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenBannerModal(banner)}
-                      className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-lg transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors cursor-pointer"
+                      title={language === 'ar' ? 'تعديل' : 'Edit'}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -674,7 +675,8 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                           }
                         });
                       }}
-                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
+                      title={language === 'ar' ? 'حذف' : 'Delete'}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -688,11 +690,11 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       {/* TAB 3: Coupons */}
       {!loading && !error && activeTab === 'coupons' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {coupons.map((coupon) => (
             <div
               key={coupon.id}
-              className="bg-white dark:bg-slate-900 border border-dashed border-primary-300 dark:border-primary-800 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between"
+              className="bg-white dark:bg-slate-900 border border-dashed border-primary-300 dark:border-primary-800 rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between">
@@ -702,7 +704,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
                   <button
                     onClick={() => handleCopyCode(coupon.code)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors cursor-pointer"
                     title={language === 'ar' ? 'نسخ الكود' : 'Copy Code'}
                   >
                     {copiedCode === coupon.code ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -740,7 +742,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                       alert(err?.message || 'Failed to update coupon status');
                     }
                   }}
-                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${coupon.isActive
+                  className={`min-h-[44px] text-xs font-bold px-3 py-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${coupon.isActive
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
                     }`}
@@ -766,7 +768,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                       }
                     });
                   }}
-                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                   title={language === 'ar' ? 'حذف الكود' : 'Delete'}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -806,7 +808,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   {language === 'ar' ? 'الفئة المستهدفة *' : 'Target Topic *'}
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { id: 'all', labelAr: 'جميع المشتركين', labelEn: 'All Users' },
                     { id: 'users', labelAr: 'العملاء فقط', labelEn: 'Customers' },
@@ -816,9 +818,9 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                       key={topic.id}
                       type="button"
                       onClick={() => setPushTopic(topic.id as any)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${pushTopic === topic.id
+                      className={`min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center cursor-pointer ${pushTopic === topic.id
                           ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                          : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900'
                         }`}
                     >
                       {language === 'ar' ? topic.labelAr : topic.labelEn}
@@ -837,7 +839,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   value={pushTitle}
                   onChange={(e) => setPushTitle(e.target.value)}
                   placeholder={language === 'ar' ? 'عرض خاص: نعيمي بلدي طازج بخصم 15%' : 'Flash Sale: Fresh Naemi 15% off'}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                 />
               </div>
 
@@ -862,7 +864,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
               <button
                 type="submit"
                 disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-md disabled:opacity-50 transition-all"
+                className="w-full min-h-[48px] flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-md disabled:opacity-50 transition-all cursor-pointer"
               >
                 {sendingPush ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 <span>{language === 'ar' ? 'إرسال الحملة فوراً' : 'Broadcast Push Now'}</span>
@@ -911,10 +913,10 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       {/* Offer / Bundle Add / Edit Modal (Matching Odoo 1:1) */}
       {offerModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[92vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <Tag className="w-5 h-5 text-primary-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-xl w-full shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <Tag className="w-5 h-5 text-primary-600 shrink-0" />
               <span>
                 {offerModal.data
                   ? (language === 'ar' ? 'تعديل بيانات العرض أو الباقة' : 'Edit Offer / Bundle')
@@ -929,7 +931,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   {language === 'ar' ? 'صورة وبنر العرض أو الباقة' : 'Offer / Bundle Banner'}
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="w-24 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-24 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
                     {offerForm.bannerImage ? (
                       <img src={normalizeImageUrl(offerForm.bannerImage)} alt="Offer" className="w-full h-full object-cover" />
                     ) : (
@@ -937,7 +939,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition">
+                    <label className="min-h-[44px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition">
                       <span>{language === 'ar' ? 'رفع صورة العرض...' : 'Choose banner...'}</span>
                       <input
                         type="file"
@@ -974,7 +976,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     value={offerForm.title}
                     onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })}
                     placeholder={language === 'ar' ? 'مثال: باقة العزائم والمناسبات' : 'e.g. Feast Package'}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                   />
                 </div>
 
@@ -987,7 +989,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     value={offerForm.subtitle}
                     onChange={(e) => setOfferForm({ ...offerForm, subtitle: e.target.value })}
                     placeholder={language === 'ar' ? 'مثال: تكفي 8 إلى 12 فرداً' : 'e.g. Serves 8-12 people'}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -1001,7 +1003,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   <select
                     value={offerForm.discountType}
                     onChange={(e) => setOfferForm({ ...offerForm, discountType: e.target.value as 'percentage' | 'fixed' })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                   >
                     <option value="percentage">{language === 'ar' ? 'نسبة مئوية (%)' : 'Percentage (%)'}</option>
                     <option value="fixed">{language === 'ar' ? 'مبلغ ثابت (ر.س)' : 'Fixed Amount (SAR)'}</option>
@@ -1021,7 +1023,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     required
                     value={offerForm.discountValue}
                     onChange={(e) => setOfferForm({ ...offerForm, discountValue: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
                   />
                 </div>
 
@@ -1034,13 +1036,13 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     value={offerForm.badgeText}
                     onChange={(e) => setOfferForm({ ...offerForm, badgeText: e.target.value })}
                     placeholder={language === 'ar' ? 'باقة التوفير' : 'Special Offer'}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-bold"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-bold"
                   />
                 </div>
               </div>
 
               {/* Start & End Dates */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ar' ? 'تاريخ بداية العرض' : 'Start Date'}
@@ -1049,7 +1051,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     type="date"
                     value={offerForm.startDate}
                     onChange={(e) => setOfferForm({ ...offerForm, startDate: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
                   />
                 </div>
 
@@ -1061,7 +1063,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     type="date"
                     value={offerForm.endDate}
                     onChange={(e) => setOfferForm({ ...offerForm, endDate: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
                   />
                 </div>
               </div>
@@ -1134,7 +1136,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
               </div>
 
               {/* Active Toggle */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <input
                   type="checkbox"
                   id="offerActive"
@@ -1147,18 +1149,18 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setOfferModal({ open: false, data: null })}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition text-center"
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer transition"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{language === 'ar' ? 'حفظ العرض' : 'Save'}</span>
@@ -1171,10 +1173,10 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       {/* Banner Add / Edit Modal */}
       {bannerModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-brand-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-primary-600 shrink-0" />
               <span>
                 {bannerModal.data
                   ? (language === 'ar' ? 'تعديل البنر' : 'Edit Banner')
@@ -1189,7 +1191,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   {language === 'ar' ? 'صورة البنر *' : 'Banner Image *'}
                 </label>
                 <div className="flex items-center gap-3">
-                  <div className="w-24 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-24 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
                     {bannerForm.image ? (
                       <img src={normalizeImageUrl(bannerForm.image)} alt="Banner" className="w-full h-full object-cover" />
                     ) : (
@@ -1197,7 +1199,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition">
+                    <label className="min-h-[44px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition">
                       <span>{language === 'ar' ? 'اختيار صورة...' : 'Choose image...'}</span>
                       <input
                         type="file"
@@ -1232,7 +1234,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   value={bannerForm.title}
                   onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })}
                   placeholder={language === 'ar' ? 'بنر موسم الذبائح الطازجة' : 'Fresh Season Banner'}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-semibold"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                 />
               </div>
 
@@ -1245,7 +1247,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   value={bannerForm.link}
                   onChange={(e) => setBannerForm({ ...bannerForm, link: e.target.value })}
                   placeholder="/catalog"
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
@@ -1257,35 +1259,35 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   type="number"
                   value={bannerForm.sequence}
                   onChange={(e) => setBannerForm({ ...bannerForm, sequence: parseInt(e.target.value) || 10 })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <input
                   type="checkbox"
                   id="bannerActive"
                   checked={bannerForm.isActive}
                   onChange={(e) => setBannerForm({ ...bannerForm, isActive: e.target.checked })}
-                  className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500"
+                  className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
                 />
                 <label htmlFor="bannerActive" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                   {language === 'ar' ? 'إظهار البنر في الصفحة الرئيسية' : 'Active and visible'}
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setBannerModal({ open: false, data: null })}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition text-center"
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer transition"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{language === 'ar' ? 'حفظ البنر' : 'Save'}</span>
@@ -1298,10 +1300,10 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       {/* Coupon Modal (With Auto-Generate, Dates, and Limits - Requested by User) */}
       {couponModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <Ticket className="w-5 h-5 text-brand-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-primary-600 shrink-0" />
               <span>{language === 'ar' ? 'إنشاء كود خصم ترويجي جديد' : 'New Promo Coupon'}</span>
             </h3>
 
@@ -1316,7 +1318,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   value={couponForm.name}
                   onChange={(e) => setCouponForm({ ...couponForm, name: e.target.value })}
                   placeholder={language === 'ar' ? 'خصم عملاء التطبيق' : 'App Customers Discount'}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-semibold"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                 />
               </div>
 
@@ -1328,7 +1330,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   <button
                     type="button"
                     onClick={generateRandomCouponCode}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 dark:text-gold-400 hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
                   >
                     <Sparkles size={12} />
                     <span>{language === 'ar' ? 'توليد كود تلقائياً (Auto-generate)' : 'Auto-Generate'}</span>
@@ -1340,11 +1342,11 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   value={couponForm.code}
                   onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
                   placeholder="JABIN-9ZEL4K28"
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ar' ? 'نوع الخصم' : 'Discount Type'}
@@ -1352,7 +1354,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   <select
                     value={couponForm.discountType}
                     onChange={(e) => setCouponForm({ ...couponForm, discountType: e.target.value as any })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-semibold"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                   >
                     <option value="percentage">{language === 'ar' ? 'نسبة مئوية (%)' : 'Percentage (%)'}</option>
                     <option value="fixed">{language === 'ar' ? 'مبلغ ثابت (ر.س)' : 'Fixed (SAR)'}</option>
@@ -1366,15 +1368,16 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                   <input
                     type="number"
                     min="1"
+                    step="any"
                     required
                     value={couponForm.discountValue}
                     onChange={(e) => setCouponForm({ ...couponForm, discountValue: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ar' ? 'الحد الأدنى للطلب (ر.س)' : 'Min Order (SAR)'}
@@ -1384,7 +1387,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     min="0"
                     value={couponForm.minOrderAmount}
                     onChange={(e) => setCouponForm({ ...couponForm, minOrderAmount: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1398,13 +1401,13 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     value={couponForm.usageLimit}
                     onChange={(e) => setCouponForm({ ...couponForm, usageLimit: parseInt(e.target.value) || 0 })}
                     placeholder={language === 'ar' ? '0 = غير محدود' : '0 = unlimited'}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               {/* Start & End Dates for Coupon (Requested by User) */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ar' ? 'تاريخ البداية' : 'Valid From'}
@@ -1413,7 +1416,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     type="date"
                     value={couponForm.startDate}
                     onChange={(e) => setCouponForm({ ...couponForm, startDate: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1425,36 +1428,36 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     type="date"
                     value={couponForm.endDate}
                     onChange={(e) => setCouponForm({ ...couponForm, endDate: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <input
                   type="checkbox"
                   id="couponActive"
                   checked={couponForm.isActive}
                   onChange={(e) => setCouponForm({ ...couponForm, isActive: e.target.checked })}
-                  className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500"
+                  className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
                 />
                 <label htmlFor="couponActive" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                   {language === 'ar' ? 'تفعيل الكوبون للعملاء فوراً' : 'Active coupon'}
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setCouponModal({ open: false, data: null })}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition text-center"
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer transition"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{language === 'ar' ? 'حفظ الكوبون' : 'Save'}</span>
@@ -1467,8 +1470,8 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       {/* Delete Dialog */}
       {deleteDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl text-center">
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 flex items-center justify-center mx-auto mb-4">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -1480,11 +1483,11 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                 ? `هل أنت متأكد من رغبتك في حذف "${deleteDialog.title}"؟`
                 : `Are you sure you want to delete "${deleteDialog.title}"?`}
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3">
               <button
                 disabled={isDeleting}
                 onClick={() => setDeleteDialog({ open: false, title: '', onConfirm: async () => { } })}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50 transition text-center"
               >
                 {language === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
@@ -1526,7 +1529,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
                     setIsDeleting(false);
                   }
                 }}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer transition text-center"
               >
                 {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>{language === 'ar' ? 'نعم، حذف' : 'Delete'}</span>

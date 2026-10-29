@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminSidebar, AdminTab } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
+import { AdminOrderAlertBanner } from './AdminOrderAlertBanner';
 import { useLanguageStore } from '../../store/useLanguageStore';
+import { useAdminNotificationStore } from '../store/useAdminNotificationStore';
+import { adminApi, AdminOrder } from '../api/adminApi';
 import { AdminDashboardView } from '../views/AdminDashboardView';
 import { AdminProductsView } from '../views/AdminProductsView';
 import { AdminCategoriesView } from '../views/AdminCategoriesView';
@@ -16,6 +19,7 @@ import { AdminPaymentsView } from '../views/AdminPaymentsView';
 export const AdminLayout: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { language, isRTL } = useLanguageStore();
 
   const rawTab = (searchParams.get('tab') as AdminTab) || null;
@@ -29,11 +33,85 @@ export const AdminLayout: React.FC = () => {
     localStorage.setItem('admin_last_tab', currentTab);
   }, [currentTab]);
 
+  // Order Notification System: Background polling for new orders
+  const { triggerNewOrder } = useAdminNotificationStore();
+  const knownOrderIdsRef = useRef<Set<number>>(new Set());
+  const isInitialLoadRef = useRef(true);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const pollIncomingOrders = async () => {
+      try {
+        const res = await adminApi.getOrders({ limit: 40 });
+        if (isCancelled || !res?.orders) return;
+
+        const currentOrders: AdminOrder[] = res.orders;
+
+        // Only track & alert on actionable orders (exclude unpaid pending_payment orders waiting on gateway or cancelled orders)
+        const isActionableOrder = (o: AdminOrder) => {
+          if (o.state === 'cancelled' || o.state === 'refunded') return false;
+          if (o.state === 'pending_payment' && o.paymentStatus !== 'paid') return false;
+          return true;
+        };
+
+        const actionableOrders = currentOrders.filter(isActionableOrder);
+
+        if (isInitialLoadRef.current) {
+          // Initialize baseline of existing orders so we only alert on truly new arrivals
+          actionableOrders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+          isInitialLoadRef.current = false;
+          return;
+        }
+
+        // Detect brand-new incoming confirmed/COD/paid orders
+        const newOrders = actionableOrders.filter((o) => !knownOrderIdsRef.current.has(o.id));
+
+        if (newOrders.length > 0) {
+          // Register new IDs
+          newOrders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+
+          // Trigger sound and notification banner for the newest incoming order
+          const latest = newOrders[0];
+          triggerNewOrder(latest);
+
+          // Dispatch real-time event to update AdminOrdersView immediately without full reload
+          window.dispatchEvent(
+            new CustomEvent('admin_new_order_arrived', {
+              detail: { orders: newOrders, latest },
+            })
+          );
+        }
+      } catch (err) {
+        // Background polling errors stay quiet
+      }
+    };
+
+    // First fetch
+    pollIncomingOrders();
+
+    // Setup recurring 8-second poll
+    const intervalId = setInterval(pollIncomingOrders, 8000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [triggerNewOrder]);
+
   const handleSelectTab = (tab: AdminTab, subtab?: string) => {
     localStorage.setItem('admin_last_tab', tab);
+    setMobileDrawerOpen(false);
     const params: Record<string, string> = { tab };
     if (subtab) params.subtab = subtab;
     setSearchParams(params, { replace: true });
+  };
+
+  const handleSelectOrderFromNotification = (orderId: number) => {
+    handleSelectTab('orders');
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('admin_focus_order', { detail: { orderId } }));
+    }, 150);
   };
 
   const handleSelectSubTab = (subtab: string) => {
@@ -147,8 +225,8 @@ export const AdminLayout: React.FC = () => {
     payments: {
       titleAr: 'طرق الدفع وبوابات المعاملات',
       titleEn: 'Payment Gateways & Transactions',
-      subtitleAr: 'إدارة بوابات ميسر وماي فاتورة، مدى، أبل باي، والدفع عند الاستلام',
-      subtitleEn: 'Configure Moyasar, MyFatoorah, Mada, Apple Pay & Cash on Delivery',
+      subtitleAr: 'إدارة وتكوين بوابة ميسر المعتمدة، مدى، أبل باي، والدفع عند الاستلام',
+      subtitleEn: 'Configure Moyasar, Mada, Apple Pay & Cash on Delivery',
     },
     settings: {
       titleAr: 'إعدادات النظام والواجهة',
@@ -173,26 +251,38 @@ export const AdminLayout: React.FC = () => {
     rawSubTab || (['offers', 'coupons', 'banners', 'notifications'].includes(currentTab) ? currentTab : 'offers');
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors overflow-x-hidden">
+      {/* Sidebar (Desktop static & Mobile drawer) */}
       <AdminSidebar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={mobileDrawerOpen}
+        onCloseMobile={() => setMobileDrawerOpen(false)}
       />
 
       {/* Main Container */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+        className={`flex-1 flex flex-col min-w-0 w-full overflow-x-hidden transition-all duration-300 ${
           isRTL
-            ? sidebarCollapsed ? 'mr-20' : 'mr-64'
-            : sidebarCollapsed ? 'ml-20' : 'ml-64'
+            ? sidebarCollapsed ? 'lg:mr-20' : 'lg:mr-64'
+            : sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
         }`}
       >
-        <AdminHeader title={title} subtitle={subtitle} />
+        <AdminHeader
+          title={title}
+          subtitle={subtitle}
+          onSelectOrder={handleSelectOrderFromNotification}
+          onToggleMobileMenu={() => setMobileDrawerOpen((prev) => !prev)}
+        />
 
-        <main className={`flex-1 p-4 sm:p-6 lg:p-8 w-full mx-auto ${currentTab === 'orders' ? 'max-w-[1700px]' : 'max-w-7xl'}`}>
+        {/* Real-time Floating New Order Alert Banner */}
+        <AdminOrderAlertBanner
+          onViewOrder={(order) => handleSelectOrderFromNotification(order.id)}
+        />
+
+        <main className={`flex-1 p-3.5 sm:p-5 lg:p-8 w-full max-w-full overflow-x-hidden mx-auto ${currentTab === 'orders' ? 'max-w-[1700px]' : 'max-w-7xl'}`}>
           {currentTab === 'dashboard' && <AdminDashboardView onNavigateTab={handleSelectTab} />}
           {currentTab === 'orders' && <AdminOrdersView />}
           {currentTab === 'products' && <AdminProductsView />}

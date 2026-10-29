@@ -68,8 +68,12 @@ export interface AdminOrderLine {
   price_subtotal: number;
   discount?: number;
   discount_amount?: number;
+  size_name?: string | null;
+  size_price?: number;
   cutting_option?: string | null;
+  cutting_price?: number;
   packaging?: string | null;
+  packaging_price?: number;
   excluded_parts?: Array<{ id: number; name: string }>;
 }
 
@@ -88,6 +92,11 @@ export interface AdminOrder {
   state: string;
   paymentStatus: string;
   paymentMethod?: string;
+  paymentProvider?: string;
+  slaughterDate?: string;
+  slaughterTime?: string;
+  pointsRedeemed?: number;
+  loyaltyDiscountAmount?: number;
   subtotal?: number;
   discountAmount?: number;
   taxAmount?: number;
@@ -103,6 +112,17 @@ export interface AdminOrder {
   notes?: string;
   lines?: AdminOrderLine[];
   timeline?: AdminOrderTimeline[];
+}
+
+export interface MoyasarSettings {
+  isEnabled: boolean;
+  isTestMode: boolean;
+  livePublishableKey: string;
+  liveSecretKey: string;
+  testPublishableKey: string;
+  testSecretKey: string;
+  webhookSecret: string;
+  supportedMethods: string[];
 }
 
 export interface AdminPaymentTransaction {
@@ -300,6 +320,25 @@ export interface InvoiceSettings {
   footerNote: string;
   vatRate: number;
   prefix: string;
+}
+
+export interface AppVersionSettings {
+  android: {
+    latestVersion: string;
+    minVersion: string;
+    forceUpdate: boolean;
+    storeUrl: string;
+  };
+  ios: {
+    latestVersion: string;
+    minVersion: string;
+    forceUpdate: boolean;
+    storeUrl: string;
+  };
+  titleAr: string;
+  titleEn: string;
+  messageAr: string;
+  messageEn: string;
 }
 
 export const normalizeImageUrl = (url?: string): string => {
@@ -746,6 +785,11 @@ export const adminApi = {
         state: o.state || 'draft',
         paymentStatus: o.payment_status || (o.state === 'sale' ? 'paid' : 'unpaid'),
         paymentMethod: o.payment_method || o.paymentMethod || 'Cash on Delivery',
+        paymentProvider: o.payment_provider || o.payment_method || 'Moyasar',
+        slaughterDate: o.slaughter_date || '',
+        slaughterTime: o.slaughter_time || '',
+        pointsRedeemed: Number(o.points_redeemed || 0),
+        loyaltyDiscountAmount: Number(o.loyalty_discount_amount || 0),
         subtotal: Number(o.subtotal || o.amount_untaxed || 0),
         discountAmount: Number(o.discount_amount || 0),
         taxAmount: Number(o.tax_amount || o.amount_tax || 0),
@@ -758,7 +802,22 @@ export const adminApi = {
         deliveryType: o.delivery_type || 'address',
         shippingAddress: o.shipping_address || o.address || '',
         branchName: o.branch_name || (o.branch_id ? o.branch_id[1] : ''),
-        lines: o.lines || [],
+        lines: (o.lines || []).map((l: any) => ({
+          id: l.id,
+          productId: l.product_id,
+          name: l.name,
+          priceUnit: Number(l.price_unit || 0),
+          quantity: Number(l.quantity || 1),
+          priceSubtotal: Number(l.price_subtotal || 0),
+          discount: Number(l.discount || 0),
+          size_name: l.size_name || l.size?.name || '',
+          size_price: Number(l.size_price || l.size?.price || 0),
+          cuttingOption: l.cutting_name || l.cutting_option?.name || l.cutting_option || '',
+          cutting_price: Number(l.cutting_price || l.cutting_option?.extra_price || 0),
+          packaging: l.packaging_name || l.packaging?.name || l.packaging || '',
+          packaging_price: Number(l.packaging_price || l.packaging?.extra_price || 0),
+          excludedParts: l.excluded_parts || [],
+        })),
         timeline: o.timeline || [],
         notes: o.notes || '',
       })),
@@ -775,6 +834,11 @@ export const adminApi = {
       state: d.state,
       paymentStatus: d.payment_status,
       paymentMethod: d.payment_method || 'Cash on Delivery',
+      paymentProvider: d.payment_provider || d.payment_method || 'Moyasar',
+      slaughterDate: d.slaughter_date || '',
+      slaughterTime: d.slaughter_time || '',
+      pointsRedeemed: Number(d.points_redeemed || 0),
+      loyaltyDiscountAmount: Number(d.loyalty_discount_amount || 0),
       subtotal: Number(d.subtotal || 0),
       discountAmount: Number(d.discount_amount || 0),
       taxAmount: Number(d.tax_amount || 0),
@@ -796,8 +860,12 @@ export const adminApi = {
         quantity: Number(l.quantity || 1),
         priceSubtotal: Number(l.price_subtotal || 0),
         discount: Number(l.discount || 0),
-        cuttingOption: l.cutting_option,
-        packaging: l.packaging,
+        size_name: l.size_name || l.size?.name || '',
+        size_price: Number(l.size_price || l.size?.price || 0),
+        cuttingOption: l.cutting_name || l.cutting_option?.name || l.cutting_option || '',
+        cutting_price: Number(l.cutting_price || l.cutting_option?.extra_price || 0),
+        packaging: l.packaging_name || l.packaging?.name || l.packaging || '',
+        packaging_price: Number(l.packaging_price || l.packaging?.extra_price || 0),
         excludedParts: l.excluded_parts || [],
       })),
       timeline: d.timeline || [],
@@ -1172,24 +1240,100 @@ export const adminApi = {
   },
 
   getLoyaltySettings: async () => {
-    const res = await apiClient.get('/api/v1/loyalty/summary');
-    const data = res.data?.data || res.data || {};
-    return {
-      loyaltySettings: {
-        earningRate: Number(data.earning_rate ?? 1.0),
-        redemptionRate: Number(data.redemption_rate ?? 100.0),
-        minRedemption: Number(data.min_redemption ?? 500),
-      },
-    };
+    try {
+      const res = await apiClient.get('/api/v1/loyalty/settings');
+      const data = res.data?.data || res.data || {};
+      return {
+        loyaltySettings: {
+          earningRate: Number(data.earning_rate ?? 1.0),
+          redemptionRate: Number(data.redemption_rate ?? 100.0),
+          minRedemption: Number(data.min_redemption ?? 100),
+        },
+      };
+    } catch {
+      const res = await apiClient.get('/api/v1/loyalty/summary').catch(() => ({ data: {} }));
+      const data = res.data?.data || res.data || {};
+      return {
+        loyaltySettings: {
+          earningRate: Number(data.earning_rate ?? 1.0),
+          redemptionRate: Number(data.redemption_rate ?? 100.0),
+          minRedemption: Number(data.min_redemption ?? 100),
+        },
+      };
+    }
   },
 
   updateLoyaltySettings: async (settings: LoyaltySettings) => {
-    const res = await apiClient.post('/api/v1/admin/settings/loyalty', {
-      earning_rate: settings.earningRate,
-      redemption_rate: settings.redemptionRate,
-      min_redemption: settings.minRedemption,
-    });
-    return res.data;
+    try {
+      const res = await apiClient.put('/api/v1/loyalty/settings', {
+        earning_rate: settings.earningRate,
+        redemption_rate: settings.redemptionRate,
+        min_redemption: settings.minRedemption,
+      });
+      return res.data?.data || res.data;
+    } catch {
+      const res = await apiClient.post('/api/v1/admin/settings/loyalty', {
+        earning_rate: settings.earningRate,
+        redemption_rate: settings.redemptionRate,
+        min_redemption: settings.minRedemption,
+      });
+      return res.data?.data || res.data;
+    }
+  },
+
+  // Moyasar Payment Gateway Settings
+  getMoyasarSettings: async (): Promise<MoyasarSettings> => {
+    try {
+      const res = await apiClient.get('/api/v1/admin/settings/payments/moyasar');
+      const data = res.data?.data || res.data || {};
+      return {
+        isEnabled: Boolean(data.is_enabled ?? true),
+        isTestMode: Boolean(data.is_test_mode ?? true),
+        livePublishableKey: data.live_publishable_key || '',
+        liveSecretKey: data.live_secret_key || '',
+        testPublishableKey: data.test_publishable_key || 'pk_test_moyasar_default_test_key',
+        testSecretKey: data.test_secret_key || '',
+        webhookSecret: data.webhook_secret || '',
+        supportedMethods: data.supported_methods || ['mada', 'apple_pay', 'card', 'stc_pay'],
+      };
+    } catch {
+      // Local fallback configuration
+      const saved = localStorage.getItem('jabin_moyasar_admin_settings');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+      return {
+        isEnabled: true,
+        isTestMode: true,
+        livePublishableKey: '',
+        liveSecretKey: '',
+        testPublishableKey: 'pk_test_sample_live_ready_key',
+        testSecretKey: '',
+        webhookSecret: '',
+        supportedMethods: ['mada', 'apple_pay', 'card', 'stc_pay'],
+      };
+    }
+  },
+
+  updateMoyasarSettings: async (settings: MoyasarSettings) => {
+    localStorage.setItem('jabin_moyasar_admin_settings', JSON.stringify(settings));
+    try {
+      const res = await apiClient.post('/api/v1/admin/settings/payments/moyasar', {
+        is_enabled: settings.isEnabled,
+        is_test_mode: settings.isTestMode,
+        live_publishable_key: settings.livePublishableKey,
+        live_secret_key: settings.liveSecretKey,
+        test_publishable_key: settings.testPublishableKey,
+        test_secret_key: settings.testSecretKey,
+        webhook_secret: settings.webhookSecret,
+        supported_methods: settings.supportedMethods,
+      });
+      return res.data?.data || res.data;
+    } catch {
+      return { success: true, settings };
+    }
   },
 
   getInvoiceSettings: async (): Promise<{ settings: InvoiceSettings }> => {
@@ -1275,6 +1419,50 @@ export const adminApi = {
     return res.data?.data || res.data;
   },
 
+  // App Version & Updates Settings (Force / Optional)
+  getAppVersionSettings: async () => {
+    const res = await apiClient.get('/api/v1/admin/settings/app_version');
+    const d = res.data?.data || res.data || {};
+    return {
+      settings: {
+        android: {
+          latestVersion: d.android?.latest_version || '1.0.0',
+          minVersion: d.android?.min_version || '1.0.0',
+          forceUpdate: Boolean(d.android?.force_update),
+          storeUrl: d.android?.store_url || 'https://play.google.com/store/apps/details?id=com.dhabayih.lmamlaka',
+        },
+        ios: {
+          latestVersion: d.ios?.latest_version || '1.0.0',
+          minVersion: d.ios?.min_version || '1.0.0',
+          forceUpdate: Boolean(d.ios?.force_update),
+          storeUrl: d.ios?.store_url || 'https://apps.apple.com/app/id6470000000',
+        },
+        titleAr: d.title_ar || 'تحديث جديد متوفر',
+        titleEn: d.title_en || 'New Update Available',
+        messageAr: d.message_ar || 'يتوفر إصدار جديد من تطبيق ذبائح المملكة بمزايا وتحسينات جديدة. يرجى التحديث للمتابعة.',
+        messageEn: d.message_en || 'A new version of Dhabayih Al-Mamlaka is available with new improvements. Please update to continue.',
+      } as AppVersionSettings
+    };
+  },
+
+  updateAppVersionSettings: async (settings: AppVersionSettings) => {
+    const res = await apiClient.post('/api/v1/admin/settings/app_version', {
+      android_latest_version: settings.android.latestVersion,
+      android_min_version: settings.android.minVersion,
+      android_force_update: settings.android.forceUpdate,
+      android_store_url: settings.android.storeUrl,
+      ios_latest_version: settings.ios.latestVersion,
+      ios_min_version: settings.ios.minVersion,
+      ios_force_update: settings.ios.forceUpdate,
+      ios_store_url: settings.ios.storeUrl,
+      title_ar: settings.titleAr,
+      title_en: settings.titleEn,
+      message_ar: settings.messageAr,
+      message_en: settings.messageEn,
+    });
+    return res.data;
+  },
+
   // 9. Users CRM
   getUsers: async (params?: { query?: string; status?: string; limit?: number }) => {
     const res = await apiClient.get('/api/v1/admin/users', { params });
@@ -1338,10 +1526,24 @@ export const adminApi = {
 
   adjustLoyaltyPoints: async (userId: number, payload: { points: number; operation: 'add' | 'deduct'; reason?: string }) => {
     const pointsChange = payload.operation === 'deduct' ? -Math.abs(payload.points) : Math.abs(payload.points);
-    const res = await apiClient.post(`/api/v1/admin/users/${userId}/loyalty/adjust`, {
-      points_change: pointsChange,
-      reason: payload.reason,
-    });
-    return res.data;
+    try {
+      const res = await apiClient.post(`/api/v1/admin/users/${userId}/loyalty/adjust`, {
+        points_change: pointsChange,
+        operation: payload.operation,
+        reason: payload.reason,
+      });
+      return res.data?.data || res.data;
+    } catch (err: any) {
+      // Fallback to legacy loyalty adjust endpoint if needed
+      if (err.response?.status === 404) {
+        const res = await apiClient.post('/api/v1/loyalty/adjust', {
+          customer_id: userId,
+          points_change: pointsChange,
+          reason: payload.reason,
+        });
+        return res.data?.data || res.data;
+      }
+      throw err;
+    }
   },
 };

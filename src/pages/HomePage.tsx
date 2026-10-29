@@ -57,16 +57,16 @@ export const HomePage: React.FC = () => {
       {/* 1. Hero Promotional Banners Slider */}
       <BannersCarousel banners={banners} />
 
-      {/* 2. Live Sacrifice Stories & Video Highlights (Facebook Web Format) */}
+      {/* 2. Live Sacrifice Stories & Video Highlights */}
       <HighlightStories items={jabinHighlight} />
 
       {/* 3. Fast Assurance Guarantee Strip */}
       <TrustBadgesSection />
 
-      {/* 4. Category Selector Grid */}
+      {/* 4. Category Selector Grid (Strictly 4 per row) */}
       {categories.length > 0 && <CategoryGrid categories={categories} />}
 
-      {/* 5. Unified Tabbed Marketplace Products Showcase (No Endless Scroll) */}
+      {/* 5. Unified Tabbed Marketplace Products Showcase */}
       <TabbedProductShowcase
         featuredProducts={featured}
         bestSellers={bestSellers}
@@ -74,7 +74,7 @@ export const HomePage: React.FC = () => {
         onQuickView={(p) => setQuickViewProduct(p)}
       />
 
-      {/* 6. Food Safety & Veterinary Quality Standards (G-Shop & H.Meat Inspired) */}
+      {/* 6. Food Safety & Veterinary Quality Standards */}
       <TrustQualityShowcase />
 
       {/* 7. Customer Verified Reviews */}

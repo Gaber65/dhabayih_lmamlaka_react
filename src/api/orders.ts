@@ -16,6 +16,8 @@ export const ordersApi = {
   },
 
   checkout: async (payload: CheckoutPayload): Promise<CheckoutResult> => {
+    const sDate = payload.slaughterDate || payload.deliveryDate;
+    const sTime = payload.slaughterTime || payload.deliveryTimeSlot;
     const body = {
       delivery_type: payload.deliveryType,
       payment_method_id: payload.paymentMethodId,
@@ -24,8 +26,8 @@ export const ordersApi = {
       ...(payload.notes ? { notes: payload.notes } : {}),
       ...(payload.couponCode ? { coupon_code: payload.couponCode } : {}),
       ...(payload.redeemPoints !== undefined ? { redeem_points: payload.redeemPoints } : {}),
-      ...(payload.deliveryDate ? { delivery_date: payload.deliveryDate } : {}),
-      ...(payload.deliveryTimeSlot ? { delivery_time_slot: payload.deliveryTimeSlot } : {}),
+      ...(sDate ? { slaughter_date: sDate, delivery_date: sDate } : {}),
+      ...(sTime ? { slaughter_time: sTime, delivery_time_slot: sTime } : {}),
     };
     const response = await apiClient.post(ServerStrings.checkout, body);
     const data = response.data?.data || response.data;

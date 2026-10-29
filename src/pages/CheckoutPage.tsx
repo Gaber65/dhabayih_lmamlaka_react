@@ -16,18 +16,60 @@ import {
   Home,
   Tag,
   Zap,
+  Sparkles,
+  Award,
+  Coins,
+  ExternalLink,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { ordersApi } from '../api/orders';
 import { cartApi } from '../api/cart';
 import { addressApi } from '../api/address';
 import { branchesApi } from '../api/branches';
+import { profileApi } from '../api/profile';
 import { Branch } from '../types/branch.types';
 import { PaymentMethod } from '../types/order.types';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useAddressStore } from '../store/useAddressStore';
 import { useUIStore } from '../store/useUIStore';
+import { PrivacyPolicyModal } from '../components/common/PrivacyPolicyModal';
+
+const getRiyadhDateString = (offsetDays: number = 0): string => {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(d);
+};
+
+const getRiyadhCurrentHour = (): number => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Riyadh',
+      hour: 'numeric',
+      hour12: false,
+    }).formatToParts(new Date());
+    const h = parts.find((p) => p.type === 'hour')?.value;
+    return h ? parseInt(h, 10) : new Date().getHours();
+  } catch {
+    return new Date().getHours();
+  }
+};
+
+const formatRiyadhDisplayDate = (dateStr: string, isAr: boolean): string => {
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day, 12, 0, 0);
+    return d.toLocaleDateString(isAr ? 'ar-SA' : 'en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export const CheckoutPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -43,8 +85,23 @@ export const CheckoutPage: React.FC = () => {
   const { activeAddress, openLocationModal } = useAddressStore();
   const { addToast } = useUIStore();
 
+  const isSubmittingRef = React.useRef(false);
+  const riyadhCurrentHour = getRiyadhCurrentHour();
+  const riyadhTodayStr = getRiyadhDateString(0);
+  const riyadhTomorrowStr = getRiyadhDateString(1);
+  const riyadhDayAfterStr = getRiyadhDateString(2);
+
+  // If local time in Riyadh is >= 20:00 (8 PM), default slaughter to tomorrow
+  const initialDate = riyadhCurrentHour >= 20 ? riyadhTomorrowStr : riyadhTodayStr;
+  const initialTime = (riyadhCurrentHour >= 20 || riyadhCurrentHour < 8)
+    ? 'فترة الصباح (08:00 ص - 12:00 م)'
+    : 'خلال 2 - 4 ساعات';
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
-  const [deliveryFee, setDeliveryFee] = useState<number>(31.95);
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [slaughterDate, setSlaughterDate] = useState<string>(initialDate);
+  const [customDate, setCustomDate] = useState<string>('');
+  const [isCustomDate, setIsCustomDate] = useState<boolean>(false);
+  const [slaughterTime, setSlaughterTime] = useState<string>(initialTime);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -52,9 +109,17 @@ export const CheckoutPage: React.FC = () => {
   const [recipientName, setRecipientName] = useState(user?.name || '');
   const [recipientPhone, setRecipientPhone] = useState(user?.phone || '');
   const [streetAddress, setStreetAddress] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState<string>('mada');
+  const [selectedPayment, setSelectedPayment] = useState<string>('moyasar');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [redeemPoints, setRedeemPoints] = useState<boolean>(false);
+  const [loyaltySummary, setLoyaltySummary] = useState<{
+    availablePoints: number;
+    redemptionRate: number;
+    minRedemption: number;
+    isEligible: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const loadCheckoutData = async () => {
@@ -71,11 +136,38 @@ export const CheckoutPage: React.FC = () => {
           setSelectedBranchId(branchesList[0].id);
         }
         if (summaryRes) {
-          const fee = summaryRes.delivery_methods?.find((m: any) => m.code === 'address')?.fee;
-          if (typeof fee === 'number') {
-            setDeliveryFee(fee);
+          setDeliveryFee(0);
+          if (summaryRes.loyalty) {
+            const l = summaryRes.loyalty;
+            const avail = Number(l.available_points || 0);
+            const rate = Number(l.redemption_rate || 4.0);
+            const minRed = Number(l.min_redemption || 500);
+            setLoyaltySummary({
+              availablePoints: avail,
+              redemptionRate: rate > 0 ? rate : 4.0,
+              minRedemption: minRed,
+              isEligible: avail >= minRed,
+            });
           }
         }
+        // Fallback: If loyalty points wasn't in summary or 0, check user profile
+        try {
+          const profile = await profileApi.getProfile();
+          if (profile && profile.loyaltyPoints > 0) {
+            setLoyaltySummary((prev) => {
+              const currentAvail = prev?.availablePoints || 0;
+              const pts = Math.max(currentAvail, profile.loyaltyPoints);
+              const rate = prev?.redemptionRate || 4.0;
+              const minRed = prev?.minRedemption || 500;
+              return {
+                availablePoints: pts,
+                redemptionRate: rate,
+                minRedemption: minRed,
+                isEligible: pts >= minRed,
+              };
+            });
+          }
+        } catch (_) {}
         if (methodsRes && methodsRes.length > 0) {
           setBackendMethods(methodsRes);
         }
@@ -99,19 +191,41 @@ export const CheckoutPage: React.FC = () => {
 
   if (!isAuthenticated) return null;
 
-  const isRtl = i18n.language === 'ar';
+  const isAr = i18n.language === 'ar';
+  const isRtl = isAr;
 
   const paymentOptions = [
-    { id: 'mada', label: t('payment_mada', 'مدى (Mada)'), icon: CreditCard, subtitle: t('mada_subtitle', 'بطاقات الصراف مدى المحلية والدولية') },
-    { id: 'applepay', label: t('payment_apple_pay', 'Apple Pay'), icon: Zap, subtitle: t('applepay_subtitle', 'دفع فوري آمن بضغطة واحدة') },
-    { id: 'visa', label: t('payment_card', 'بطاقة ائتمانية (Visa / Master)'), icon: CreditCard, subtitle: t('card_subtitle', 'فيزا، ماستركارد، أمريكان إكسبريس') },
-    { id: 'cod', label: t('payment_cod', 'الدفع عند الاستلام'), icon: Banknote, subtitle: t('cod_subtitle', 'نقداً أو بالبطاقة عند وصول المندوب') },
+    {
+      id: 'moyasar',
+      label: isAr ? 'الدفع الإلكتروني (ميسر)' : 'Electronic Payment (Moyasar)',
+      icon: CreditCard,
+      subtitle: isAr ? 'مدى، فيزا، ماستركارد، وApple Pay' : 'Mada, Visa, MasterCard & Apple Pay',
+    },
+    {
+      id: 'cod',
+      label: isAr ? 'الدفع عند الاستلام' : 'Cash on Delivery',
+      icon: Banknote,
+      subtitle: isAr ? 'نقداً أو بالبطاقة عند وصول المندوب' : 'Cash or card on arrival',
+    },
   ];
 
   const lines = cart?.lines || [];
   const subtotal = cart?.subtotal || lines.reduce((s, l) => s + (l.lineTotal || 0), 0);
-  const shippingFee = deliveryType === 'delivery' ? deliveryFee : 0;
-  const total = Math.max(0, subtotal - discountAmount + shippingFee);
+  const shippingFee = 0;
+
+  // Loyalty Points Settlement Calculations
+  const availablePoints = loyaltySummary?.availablePoints || 0;
+  const redemptionRate = (loyaltySummary?.redemptionRate || 4.0) > 0 ? (loyaltySummary?.redemptionRate || 4.0) : 4.0;
+  const minRedemption = loyaltySummary?.minRedemption || 500;
+  const isLoyaltyEligible = availablePoints >= minRedemption;
+  const pointsMonetaryValue = availablePoints > 0 ? Number((availablePoints / redemptionRate).toFixed(2)) : 0;
+
+  const maxOrderPayable = Math.max(0, subtotal - discountAmount);
+  const loyaltyDiscount = (redeemPoints && isLoyaltyEligible && maxOrderPayable > 0)
+    ? Math.min(pointsMonetaryValue, maxOrderPayable)
+    : 0;
+
+  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscount);
 
   if (lines.length === 0) {
     return (
@@ -136,6 +250,8 @@ export const CheckoutPage: React.FC = () => {
   const handleConfirmOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmittingRef.current || submitting) return;
+
     if (deliveryType === 'delivery') {
       if (!recipientName.trim() || !recipientPhone.trim()) {
         addToast({
@@ -158,6 +274,7 @@ export const CheckoutPage: React.FC = () => {
       }
     }
 
+    isSubmittingRef.current = true;
     setSubmitting(true);
     try {
       let addressId = activeAddress?.id;
@@ -183,26 +300,17 @@ export const CheckoutPage: React.FC = () => {
 
       const resolvePaymentMethodId = (paymentCode: string): number => {
         if (backendMethods.length > 0) {
-          if (paymentCode === 'applepay') {
-            const found = backendMethods.find((m) => m.code === 'apple_pay' || m.code === 'applepay');
+          if (paymentCode === 'cod') {
+            const found = backendMethods.find((m) => m.code === 'cod');
+            if (found) return found.id;
+          } else {
+            const found =
+              backendMethods.find((m) => m.code === 'moyasar' || m.provider === 'moyasar') ||
+              backendMethods.find((m) => m.code === 'mada' || m.code === 'card' || m.code === 'apple_pay');
             if (found) return found.id;
           }
-          if (paymentCode === 'visa') {
-            const found = backendMethods.find((m) => m.code === 'card' || m.code === 'visa');
-            if (found) return found.id;
-          }
-          const found = backendMethods.find((m) => m.code === paymentCode);
-          if (found) return found.id;
         }
-        const idMap: Record<string, number> = {
-          cod: 1,
-          visa: 2,
-          mada: 3,
-          stc_pay: 4,
-          applepay: 5,
-          moyasar: 3,
-        };
-        return idMap[paymentCode] || (paymentCode === 'cod' ? 1 : 3);
+        return paymentCode === 'cod' ? 1 : 9;
       };
 
       const resolvedPaymentMethodId = resolvePaymentMethodId(selectedPayment);
@@ -234,6 +342,24 @@ export const CheckoutPage: React.FC = () => {
         }
       }
 
+      const currentRiyadhToday = getRiyadhDateString(0);
+      let effectiveSlaughterDate = isCustomDate && customDate ? customDate : (slaughterDate || currentRiyadhToday);
+      if (effectiveSlaughterDate < currentRiyadhToday) {
+        effectiveSlaughterDate = currentRiyadhToday;
+      }
+      if (effectiveSlaughterDate === currentRiyadhToday && riyadhCurrentHour >= 20) {
+        effectiveSlaughterDate = getRiyadhDateString(1);
+      }
+
+      let effectiveSlaughterTime = slaughterTime || (deliveryType === 'pickup' ? 'خلال 1 - 2 ساعة من التجهيز' : 'خلال 2 - 4 ساعات');
+      if (
+        effectiveSlaughterDate === currentRiyadhToday &&
+        (riyadhCurrentHour >= 20 || riyadhCurrentHour < 8) &&
+        (effectiveSlaughterTime.includes('2 - 4') || effectiveSlaughterTime.includes('1 - 2'))
+      ) {
+        effectiveSlaughterTime = 'فترة الصباح (08:00 ص - 12:00 م)';
+      }
+
       const apiResult = await ordersApi.checkout({
         deliveryType: deliveryType === 'pickup' ? 'pickup' : 'address',
         addressId: deliveryType === 'delivery' ? addressId : undefined,
@@ -241,6 +367,9 @@ export const CheckoutPage: React.FC = () => {
         paymentMethodId: resolvedPaymentMethodId,
         notes: notes.trim() || undefined,
         couponCode: couponCode || undefined,
+        redeemPoints: (redeemPoints && isLoyaltyEligible) ? true : undefined,
+        slaughterDate: effectiveSlaughterDate,
+        slaughterTime: effectiveSlaughterTime,
       });
 
       const selectedBranch = branches.find((b) => b.id === selectedBranchId);
@@ -263,8 +392,8 @@ export const CheckoutPage: React.FC = () => {
         streetAddress: streetName,
         recipientName: recipientName || (isRtl ? 'عميل ذبائح المملكة' : 'Valued Customer'),
         recipientPhone: recipientPhone || '05xxxxxxxx',
-        deliveryDate: deliveryType === 'pickup' ? t('ready_for_pickup_today', 'جاهز للاستلام اليوم') : t('instant_delivery_today', 'توصيل فوري اليوم'),
-        deliverySlot: deliveryType === 'pickup' ? t('pickup_time_slot', 'خلال 1 - 2 ساعة من التجهيز') : t('delivery_time_slot', 'خلال 2 - 4 ساعات'),
+        deliveryDate: formatRiyadhDisplayDate(effectiveSlaughterDate, isAr),
+        deliverySlot: effectiveSlaughterTime,
         subtotal: apiResult.subtotal || subtotal,
         discountAmount: apiResult.discountAmount || discountAmount,
         total: apiResult.total || total,
@@ -297,9 +426,7 @@ export const CheckoutPage: React.FC = () => {
             title: t('redirecting_to_payment', 'جاري التوجيه لبوابة الدفع...'),
             message: t('redirecting_to_moyasar_desc', 'نقوم بتحويلك إلى بوابة الدفع الآمنة (ميسر) لإتمام سداد طلبك.'),
           });
-          // Clear cart now that checkout order is created and pending payment
-          await clearCart();
-          // Redirect to Moyasar gateway
+          // Redirect to Moyasar gateway (cart is preserved until payment is verified successfully)
           window.location.href = paymentRes.paymentUrl;
           return;
         } else {
@@ -319,12 +446,18 @@ export const CheckoutPage: React.FC = () => {
       await clearCart();
       navigate('/order-success', { state: { result: orderResult } });
     } catch (err: any) {
+      const specificErr =
+        err.response?.data?.errors?.[0]?.message ||
+        err.response?.data?.message ||
+        err.message ||
+        t('order_submit_failed_msg', 'حدث خطأ أثناء معالجة الطلب، يرجى المحاولة مرة أخرى');
       addToast({
         type: 'error',
         title: t('order_submit_failed_title', 'تعذر إتمام الطلب'),
-        message: err.response?.data?.message || err.message || t('order_submit_failed_msg', 'حدث خطأ أثناء معالجة الطلب، يرجى المحاولة مرة أخرى'),
+        message: specificErr,
       });
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -606,31 +739,260 @@ export const CheckoutPage: React.FC = () => {
             </div>
           )}
 
-          {/* 3. Delivery Timeslot */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-xs">
-            <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-brand-500" />
-              <span>{t('delivery_time_slot_title', 'موعد ووقت التجهيز والتوصيل')}</span>
-            </h3>
+          {/* 3. Slaughter Date & Time Slot Picker (Interactive) */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-brand-500" />
+                <span>{t('slaughter_date_and_time_title', 'موعد وتاريخ الذبح والتجهيز')}</span>
+              </h3>
+              <span className="text-[11px] font-bold text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-lg">
+                {t('riyadh_timezone_badge', 'بتوقيت الرياض (UTC+3)')}
+              </span>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl border border-brand-200 bg-brand-50/50 flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-brand-600" />
-                <div className="text-xs">
-                  <div className="font-bold text-slate-900">{t('delivery_date_today', 'اليوم (توصيل فوري)')}</div>
-                  <div className="text-[11px] text-slate-500">{new Date().toLocaleDateString(isRtl ? 'ar-SA' : 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-                </div>
+            {/* Date Selection Pills */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">
+                {t('select_slaughter_date', 'اختر يوم الذبح:')}
+              </label>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* 1. Today */}
+                {(() => {
+                  const isTodayPast = riyadhCurrentHour >= 20;
+                  const isSelected = !isCustomDate && slaughterDate === riyadhTodayStr;
+                  return (
+                    <button
+                      type="button"
+                      disabled={isTodayPast}
+                      onClick={() => {
+                        setIsCustomDate(false);
+                        setSlaughterDate(riyadhTodayStr);
+                      }}
+                      className={`p-3 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between gap-1 ${
+                        isTodayPast
+                          ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-brand-50/80 border-brand-500 ring-2 ring-brand-500 shadow-xs'
+                          : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`text-xs font-black ${isSelected ? 'text-brand-700' : 'text-slate-900'}`}>
+                          {t('today', 'اليوم')}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-brand-600" />}
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {formatRiyadhDisplayDate(riyadhTodayStr, isAr)}
+                      </span>
+                      {isTodayPast && (
+                        <span className="text-[9px] font-bold text-rose-600 mt-0.5">
+                          {t('today_closed', 'انتهت فترات اليوم')}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
+
+                {/* 2. Tomorrow */}
+                {(() => {
+                  const isSelected = !isCustomDate && slaughterDate === riyadhTomorrowStr;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDate(false);
+                        setSlaughterDate(riyadhTomorrowStr);
+                      }}
+                      className={`p-3 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between gap-1 ${
+                        isSelected
+                          ? 'bg-brand-50/80 border-brand-500 ring-2 ring-brand-500 shadow-xs'
+                          : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`text-xs font-black ${isSelected ? 'text-brand-700' : 'text-slate-900'}`}>
+                          {t('tomorrow', 'غداً')}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-brand-600" />}
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {formatRiyadhDisplayDate(riyadhTomorrowStr, isAr)}
+                      </span>
+                    </button>
+                  );
+                })()}
+
+                {/* 3. Day After Tomorrow */}
+                {(() => {
+                  const isSelected = !isCustomDate && slaughterDate === riyadhDayAfterStr;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDate(false);
+                        setSlaughterDate(riyadhDayAfterStr);
+                      }}
+                      className={`p-3 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between gap-1 ${
+                        isSelected
+                          ? 'bg-brand-50/80 border-brand-500 ring-2 ring-brand-500 shadow-xs'
+                          : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`text-xs font-black ${isSelected ? 'text-brand-700' : 'text-slate-900'}`}>
+                          {t('day_after_tomorrow', 'بعد غد')}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-brand-600" />}
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {formatRiyadhDisplayDate(riyadhDayAfterStr, isAr)}
+                      </span>
+                    </button>
+                  );
+                })()}
+
+                {/* 4. Custom Date */}
+                {(() => {
+                  const isSelected = isCustomDate;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDate(true);
+                        if (!customDate) {
+                          setCustomDate(riyadhTomorrowStr);
+                          setSlaughterDate(riyadhTomorrowStr);
+                        }
+                      }}
+                      className={`p-3 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between gap-1 ${
+                        isSelected
+                          ? 'bg-brand-50/80 border-brand-500 ring-2 ring-brand-500 shadow-xs'
+                          : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`text-xs font-black ${isSelected ? 'text-brand-700' : 'text-slate-900'}`}>
+                          {t('custom_date', 'تاريخ آخر')}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-brand-600" />}
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium truncate">
+                        {isCustomDate && customDate ? formatRiyadhDisplayDate(customDate, isAr) : t('pick_date', 'تحديد من التقويم')}
+                      </span>
+                    </button>
+                  );
+                })()}
               </div>
 
-              <div className="p-3 rounded-xl border border-brand-200 bg-brand-50/50 flex items-center gap-3">
-                <Clock className="w-5 h-5 text-brand-600" />
-                <div className="text-xs">
-                  <div className="font-bold text-slate-900">
-                    {deliveryType === 'pickup' ? t('pickup_fast_slot', 'خلال 1 - 2 ساعة من الطلب') : t('delivery_fast_slot', 'خلال 2 - 4 ساعات')}
-                  </div>
-                  <div className="text-[11px] text-slate-500">{t('slaughter_prep_fresh_tag', 'ذبح طازج وتوصيل مباشر')}</div>
+              {/* Custom Date Picker Input (Visible when custom date is chosen) */}
+              {isCustomDate && (
+                <div className="pt-2">
+                  <input
+                    type="date"
+                    min={riyadhTodayStr}
+                    value={customDate || riyadhTomorrowStr}
+                    onChange={(e) => {
+                      setCustomDate(e.target.value);
+                      setSlaughterDate(e.target.value);
+                    }}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-50 border border-brand-300 focus:border-brand-500 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none transition"
+                  />
                 </div>
+              )}
+            </div>
+
+            {/* Time Slot Selection */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700">
+                {t('select_slaughter_time_slot', 'فترة الذبح والتجهيز المفضلة:')}
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  {
+                    id: 'express',
+                    title: deliveryType === 'pickup' ? t('pickup_fast_slot', 'خلال 1 - 2 ساعة من التجهيز') : t('instant_direct_slot', 'تجهيز وتوصيل فوري (خلال 2 - 4 ساعات)'),
+                    desc: t('slaughter_prep_fresh_tag', 'ذبح طازج وتوصيل مباشر'),
+                    disabled: slaughterDate === riyadhTodayStr && (riyadhCurrentHour >= 20 || riyadhCurrentHour < 6),
+                    value: deliveryType === 'pickup' ? 'خلال 1 - 2 ساعة من التجهيز' : 'خلال 2 - 4 ساعات',
+                  },
+                  {
+                    id: 'morning',
+                    title: t('morning_slot_title', 'فترة الصباح (08:00 ص - 12:00 م)'),
+                    desc: t('morning_slot_desc', 'ذبح باكر مع بدء الوردية الصباحية'),
+                    disabled: slaughterDate === riyadhTodayStr && riyadhCurrentHour >= 12,
+                    value: 'فترة الصباح (08:00 ص - 12:00 م)',
+                  },
+                  {
+                    id: 'noon',
+                    title: t('noon_slot_title', 'فترة الظهر (12:00 م - 04:00 م)'),
+                    desc: t('noon_slot_desc', 'ذبح وتجهيز فترة الظهيرة'),
+                    disabled: slaughterDate === riyadhTodayStr && riyadhCurrentHour >= 16,
+                    value: 'فترة الظهر (12:00 م - 04:00 م)',
+                  },
+                  {
+                    id: 'evening',
+                    title: t('evening_slot_title', 'فترة المساء (04:00 م - 08:00 م)'),
+                    desc: t('evening_slot_desc', 'ذبح وتجهيز الفترة المسائية'),
+                    disabled: slaughterDate === riyadhTodayStr && riyadhCurrentHour >= 20,
+                    value: 'فترة المساء (04:00 م - 08:00 م)',
+                  },
+                ].map((slot) => {
+                  const isSelected = slaughterTime === slot.value || (slot.id === 'express' && (slaughterTime.includes('2 - 4') || slaughterTime.includes('1 - 2')));
+                  return (
+                    <div
+                      key={slot.id}
+                      onClick={() => {
+                        if (!slot.disabled) {
+                          setSlaughterTime(slot.value);
+                        }
+                      }}
+                      className={`p-3.5 rounded-xl border transition flex items-start justify-between gap-2.5 ${
+                        slot.disabled
+                          ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-brand-50/80 border-brand-500 ring-2 ring-brand-500 shadow-xs cursor-pointer'
+                          : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <Clock className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isSelected ? 'text-brand-600' : 'text-slate-400'}`} />
+                        <div>
+                          <div className={`text-xs font-black ${isSelected ? 'text-brand-900' : 'text-slate-900'}`}>
+                            {slot.title}
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {slot.desc}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {slot.disabled ? (
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-200/80 px-2 py-0.5 rounded-full">
+                            {t('slot_expired', 'انتهت الفترة')}
+                          </span>
+                        ) : isSelected ? (
+                          <CheckCircle2 className="w-4 h-4 text-brand-600" />
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+            </div>
+
+            {/* Delivery Estimation Note */}
+            <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-center gap-2.5 text-xs text-amber-900">
+              <Truck className="w-4 h-4 text-amber-700 flex-shrink-0" />
+              <span>
+                {deliveryType === 'pickup'
+                  ? t('pickup_estimate_info', 'الاستلام من الفرع: تُجهز الذبيحة وتكون جاهزة للاستلام خلال ساعة إلى ساعتين من موعد الذبح.')
+                  : t('delivery_estimate_info', 'التوصيل المبرد: تُنقل الذبائح في سيارات مجهزة ومبردة (4°C) وتصلكم خلال 2 إلى 4 ساعات بعد الذبح والتجهيز.')}
+              </span>
             </div>
           </div>
 
@@ -679,7 +1041,81 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 5. Special Notes */}
+          {/* 5. Loyalty Points Settlement (تسوية النقاط لفلوس) */}
+          <div className={`rounded-2xl border p-5 space-y-3 transition-all ${
+            redeemPoints && isLoyaltyEligible
+              ? 'bg-gradient-to-r from-amber-500/10 via-amber-50 to-amber-100/40 border-amber-400 shadow-xs ring-1 ring-amber-300'
+              : 'bg-white border-slate-200 shadow-xs'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                  redeemPoints && isLoyaltyEligible ? 'bg-amber-500 text-white shadow-xs' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  <Coins className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                    <span>{t('loyalty_redemption_title', 'استبدال وتسوية نقاط الولاء لفلوس')}</span>
+                    {availablePoints > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                        {availablePoints} {t('points', 'نقطة')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {availablePoints > 0
+                      ? `${t('points_equivalent_to', 'نقاطك تعادل')} ${pointsMonetaryValue.toFixed(2)} ${t('sar', 'ر.س')} ${t('direct_discount', 'خصم مباشر من الفاتورة')}`
+                      : t('no_points_available', 'ليس لديك نقاط ولاء حالياً. تكتسب نقاطاً تلقائياً مع كل طلب!')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modern Switch Toggle */}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  disabled={!isLoyaltyEligible}
+                  checked={redeemPoints && isLoyaltyEligible}
+                  onChange={(e) => setRedeemPoints(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                  isLoyaltyEligible
+                    ? 'peer-checked:bg-amber-500 cursor-pointer'
+                    : 'opacity-50 cursor-not-allowed'
+                }`}></div>
+              </label>
+            </div>
+
+            {/* Loyalty Feedback Message */}
+            {availablePoints > 0 ? (
+              isLoyaltyEligible ? (
+                redeemPoints ? (
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 bg-amber-100/70 border border-amber-300/80 rounded-xl p-3">
+                    <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>
+                      {t('points_applied_msg', 'تم تفعيل تسوية النقاط! تم خصم')} {loyaltyDiscount.toFixed(2)} {t('sar', 'ر.س')} {t('from_order_total', 'من إجمالي طلبك.')}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>{t('toggle_to_redeem_points', 'فعّل الزر أعلاه لاستخدام نقاطك وخصم قيمتها فوراً من إجمالي الفاتورة.')}</span>
+                  </div>
+                )
+              ) : (
+                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-100/80 rounded-xl p-2.5 border border-slate-200">
+                  <Award className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>
+                    {t('min_points_warning', 'الحد الأدنى للاستبدال هو')} {minRedemption} {t('points', 'نقطة')}. ({t('you_need', 'تحتاج إلى')} {Math.max(0, minRedemption - availablePoints)} {t('more_points_to_redeem', 'نقطة إضافية للتمكن من الاستبدال')}).
+                  </span>
+                </div>
+              )
+            ) : null}
+          </div>
+
+          {/* 6. Special Notes */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-2 shadow-xs">
             <label className="block text-xs font-black text-slate-900">
               {t('special_order_notes', 'ملاحظات وتوصيات خاصة بالطلب (اختياري)')}
@@ -738,16 +1174,15 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between text-slate-600">
-                <span>{t('delivery_fee', 'رسوم الشحن والتوصيل:')}</span>
-                {deliveryType === 'delivery' ? (
-                  <span className="font-bold font-mono text-slate-800">
-                    {deliveryFee > 0 ? `${deliveryFee.toLocaleString('en-US')} ${t('sar', 'ر.س')}` : t('free', 'مجاني')}
+              {loyaltyDiscount > 0 && (
+                <div className="flex items-center justify-between text-amber-700 bg-amber-50/90 border border-amber-200/90 px-2.5 py-1.5 rounded-xl font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{t('loyalty_points_discount_label', 'خصم تسوية النقاط:')}</span>
                   </span>
-                ) : (
-                  <span className="text-emerald-600 font-bold">{t('free_pickup', 'استلام مجاني من الفرع')}</span>
-                )}
-              </div>
+                  <span className="font-mono">- {loyaltyDiscount.toFixed(2)} {t('sar', 'ر.س')}</span>
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-slate-400 text-[11px]">
                 <span>{t('tax', 'ضريبة القيمة المضافة (15%):')}</span>
@@ -765,6 +1200,22 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Terms & Privacy Agreement Trigger (Opens in New Tab) */}
+            <div className="pb-1 text-center">
+              <a
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1 text-[11px] text-slate-500 hover:text-brand-600 transition cursor-pointer"
+              >
+                <span>{isRtl ? 'بالضغط على تأكيد الطلب، فإنك توافق على ' : 'By placing the order, you agree to the '}</span>
+                <span className="font-bold underline text-brand-600 underline-offset-2">
+                  {isRtl ? 'الشروط والأحكام وسياسة الخصوصية' : 'Terms of Service & Privacy Policy'}
+                </span>
+                <ExternalLink className="w-3 h-3 text-brand-600 flex-shrink-0" />
+              </a>
+            </div>
+
             {/* Submit Order CTA */}
             <button
               type="submit"
@@ -776,7 +1227,7 @@ export const CheckoutPage: React.FC = () => {
                   ? t('processing_order', 'جاري المعالجة...')
                   : selectedPayment === 'cod'
                   ? t('confirm_cod_order', 'تأكيد الطلب (الدفع عند الاستلام)')
-                  : t('proceed_to_myfatoorah', 'المتابعة إلى الدفع الآمن (ماي فاتورة)')}
+                  : t('proceed_to_moyasar', 'المتابعة إلى بوابة الدفع الآمن (ميسر)')}
               </span>
               {isRtl ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
@@ -788,6 +1239,12 @@ export const CheckoutPage: React.FC = () => {
           </div>
         </div>
       </form>
+
+      {/* Privacy Policy & Terms Modal */}
+      <PrivacyPolicyModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
     </div>
   );
 };

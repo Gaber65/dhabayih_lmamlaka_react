@@ -90,112 +90,73 @@ export const ProductDetailsPage: React.FC = () => {
   const effectivePortions = useMemo(() => {
     if (!product) return [];
     if (product.portions && product.portions.length > 0) return product.portions;
-    if (
-      product.isCarcass ||
-      product.is_carcass ||
-      product.categoryId === 5 ||
-      product.name.includes('نعيمي') ||
-      product.name.includes('نجدي') ||
-      product.name.includes('حري') ||
-      product.name.includes('تيس')
-    ) {
-      const allSizes = product.sizes || [];
-      const fullSizes = allSizes.filter(
-        (s) => (s.portionType || s.portion_type || 'full') === 'full'
-      );
-      const halfSizes = allSizes.filter(
-        (s) => (s.portionType || s.portion_type) === 'half'
-      );
-      const quarterSizes = allSizes.filter(
-        (s) => (s.portionType || s.portion_type) === 'quarter'
-      );
 
-      const fullPrice = fullSizes.length > 0 ? fullSizes[0].price : product.price;
-      const halfPrice = halfSizes.length > 0 ? halfSizes[0].price : Math.round(fullPrice * 0.5);
-      const quarterPrice = quarterSizes.length > 0 ? quarterSizes[0].price : Math.round(fullPrice * 0.25);
+    const allSizes = product.sizes || [];
+    if (allSizes.length === 0) return [];
 
-      return [
-        {
-          type: 'full',
-          name: isAr ? 'كامل' : 'Whole',
-          title: isAr ? `${product.name} كامل` : `Whole ${product.name}`,
-          subtitle: isAr ? 'ذبيحة كاملة مجهزة بالكامل' : 'Whole carcass freshly prepared',
-          imageUrl: product.imageUrl,
-          startingPrice: fullPrice,
-          sizeCount: fullSizes.length,
-        },
-        {
-          type: 'half',
-          name: isAr ? 'نصف' : 'Half',
-          title: isAr ? `نصف ${product.name}` : `Half ${product.name}`,
-          subtitle: isAr ? 'نصف ذبيحة طازج مقسوم بالطول' : 'Half carcass freshly cut lengthwise',
-          imageUrl: product.imageUrl,
-          startingPrice: halfPrice,
-          sizeCount: halfSizes.length,
-        },
-        {
-          type: 'quarter',
-          name: isAr ? 'ربع' : 'Quarter',
-          title: isAr ? `ربع ${product.name}` : `Quarter ${product.name}`,
-          subtitle: isAr ? 'ربع متكامل (كتف أو فخذ مع ضلوع)' : 'Quarter portion (shoulder or leg with ribs)',
-          imageUrl: product.imageUrl,
-          startingPrice: quarterPrice,
-          sizeCount: quarterSizes.length,
-        },
-      ];
+    const fullSizes = allSizes.filter(
+      (s) => (s.portionType || s.portion_type || 'full') === 'full'
+    );
+    const halfSizes = allSizes.filter(
+      (s) => (s.portionType || s.portion_type) === 'half'
+    );
+    const quarterSizes = allSizes.filter(
+      (s) => (s.portionType || s.portion_type) === 'quarter'
+    );
+
+    const portions = [];
+    if (fullSizes.length > 0) {
+      portions.push({
+        type: 'full',
+        name: isAr ? 'كامل' : 'Whole',
+        title: isAr ? `${product.name} كامل` : `Whole ${product.name}`,
+        subtitle: isAr ? 'ذبيحة كاملة مجهزة بالكامل' : 'Whole carcass freshly prepared',
+        imageUrl: product.imageUrl,
+        startingPrice: fullSizes[0].price,
+        sizeCount: fullSizes.length,
+      });
     }
-    return [];
+    if (halfSizes.length > 0) {
+      portions.push({
+        type: 'half',
+        name: isAr ? 'نصف' : 'Half',
+        title: isAr ? `نصف ${product.name}` : `Half ${product.name}`,
+        subtitle: isAr ? 'نصف ذبيحة طازج مقسوم بالطول' : 'Half carcass freshly cut lengthwise',
+        imageUrl: product.imageUrl,
+        startingPrice: halfSizes[0].price,
+        sizeCount: halfSizes.length,
+      });
+    }
+    if (quarterSizes.length > 0) {
+      portions.push({
+        type: 'quarter',
+        name: isAr ? 'ربع' : 'Quarter',
+        title: isAr ? `ربع ${product.name}` : `Quarter ${product.name}`,
+        subtitle: isAr ? 'ربع متكامل (كتف أو فخذ مع ضلوع)' : 'Quarter portion (shoulder or leg with ribs)',
+        imageUrl: product.imageUrl,
+        startingPrice: quarterSizes[0].price,
+        sizeCount: quarterSizes.length,
+      });
+    }
+
+    return portions;
   }, [product, isAr]);
 
   const filteredSizes = useMemo(() => {
     if (!product || !product.sizes || product.sizes.length === 0) return [];
-    
-    // 1. Check if there are explicit matching sizes in product.sizes from Odoo
+
+    // Strictly return real sizes configured in backend/admin matching selectedPortion
     const matched = product.sizes.filter(
       (s) => (s.portionType || s.portion_type || 'full') === selectedPortion
     );
     if (matched.length > 0) return matched;
 
-    // 2. If 'half' and no explicit sizes, compute half sizes dynamically
-    if (selectedPortion === 'half') {
-      const fullSizes = product.sizes.filter((s) => (s.portionType || s.portion_type || 'full') === 'full');
-      const base = fullSizes.length > 0 ? fullSizes : product.sizes;
-      return base.map((s) => ({
-        ...s,
-        id: s.id + 100000,
-        name: isAr ? `نصف ${s.name.replace(/^(كامل|نصف|ربع)\s*/, '')}` : `Half ${s.name}`,
-        portionType: 'half',
-        portion_type: 'half',
-        price: Math.round(s.price * 0.5),
-        calories: Math.round((s.calories || 243) * 0.5),
-        loyaltyPoints: Math.round((s.loyaltyPoints || s.loyalty_points || s.price * 0.5) * 0.5),
-        pointsPrice: Math.round((s.pointsPrice || s.points_price || s.price * 4) * 0.5),
-        subTitle: isAr ? 'نصف ذبيحة طازج' : 'Fresh half carcass',
-        weightRange: (s.weightRange || s.weight_range) ? `${s.weightRange || s.weight_range} (نصف)` : undefined,
-      }));
-    }
-
-    // 3. If 'quarter' and no explicit sizes, compute quarter sizes dynamically
-    if (selectedPortion === 'quarter') {
-      const fullSizes = product.sizes.filter((s) => (s.portionType || s.portion_type || 'full') === 'full');
-      const base = fullSizes.length > 0 ? fullSizes : product.sizes;
-      return base.map((s) => ({
-        ...s,
-        id: s.id + 200000,
-        name: isAr ? `ربع ${s.name.replace(/^(كامل|نصف|ربع)\s*/, '')}` : `Quarter ${s.name}`,
-        portionType: 'quarter',
-        portion_type: 'quarter',
-        price: Math.round(s.price * 0.25),
-        calories: Math.round((s.calories || 243) * 0.25),
-        loyaltyPoints: Math.round((s.loyaltyPoints || s.loyalty_points || s.price * 0.5) * 0.25),
-        pointsPrice: Math.round((s.pointsPrice || s.points_price || s.price * 4) * 0.25),
-        subTitle: isAr ? 'ربع ذبيحة طازج' : 'Fresh quarter carcass',
-        weightRange: (s.weightRange || s.weight_range) ? `${s.weightRange || s.weight_range} (ربع)` : undefined,
-      }));
-    }
-
-    return product.sizes.filter((s) => (s.portionType || s.portion_type || 'full') === 'full');
-  }, [product, selectedPortion, isAr]);
+    // Fallback to active sizes of default portion or all sizes
+    const fallback = product.sizes.filter(
+      (s) => (s.portionType || s.portion_type || 'full') === 'full'
+    );
+    return fallback.length > 0 ? fallback : product.sizes;
+  }, [product, selectedPortion]);
 
   useEffect(() => {
     if (filteredSizes.length > 0) {
@@ -529,7 +490,7 @@ export const ProductDetailsPage: React.FC = () => {
             </div>
 
             {/* Carcass Portion Switcher (كامل, نصف, ربع) */}
-            {effectivePortions.length > 0 && (
+            {effectivePortions.length > 1 && (
               <div className="space-y-3 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black text-slate-900">
@@ -540,7 +501,11 @@ export const ProductDetailsPage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/80">
+                <div
+                  className={`grid gap-2.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/80 ${
+                    effectivePortions.length === 2 ? 'grid-cols-2' : effectivePortions.length >= 3 ? 'grid-cols-3' : 'grid-cols-1'
+                  }`}
+                >
                   {effectivePortions.map((portion) => {
                     const isSelected = selectedPortion === portion.type;
                     return (

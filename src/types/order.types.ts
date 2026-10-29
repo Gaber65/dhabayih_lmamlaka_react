@@ -75,6 +75,8 @@ export interface CheckoutPayload {
   redeemPoints?: boolean;
   deliveryDate?: string;
   deliveryTimeSlot?: string;
+  slaughterDate?: string;
+  slaughterTime?: string;
 }
 
 export interface CheckoutResult {

@@ -18,12 +18,14 @@ import {
   Mail,
   MapPin,
   Percent,
-  Check
+  Check,
+  Download,
+  AlertTriangle,
 } from 'lucide-react';
-import { adminApi, LoyaltySettings, ContactSettings, InvoiceSettings } from '../api/adminApi';
+import { adminApi, LoyaltySettings, ContactSettings, InvoiceSettings, AppVersionSettings } from '../api/adminApi';
 import { useLanguageStore } from '../../store/useLanguageStore';
 
-type SettingsTab = 'invoice' | 'contact' | 'loyalty';
+type SettingsTab = 'invoice' | 'contact' | 'loyalty' | 'app_updates';
 
 export const AdminSettingsView: React.FC = () => {
   const { language, isRTL } = useLanguageStore();
@@ -34,8 +36,25 @@ export const AdminSettingsView: React.FC = () => {
   const [savingLoyalty, setSavingLoyalty] = useState(false);
   const [savingContact, setSavingContact] = useState(false);
   const [savingInvoice, setSavingInvoice] = useState(false);
+  const [savingAppUpdates, setSavingAppUpdates] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // App Updates states
+  const [androidLatestVersion, setAndroidLatestVersion] = useState<string>('1.0.0');
+  const [androidMinVersion, setAndroidMinVersion] = useState<string>('1.0.0');
+  const [androidForceUpdate, setAndroidForceUpdate] = useState<boolean>(false);
+  const [androidStoreUrl, setAndroidStoreUrl] = useState<string>('https://play.google.com/store/apps/details?id=com.dhabayih.lmamlaka');
+
+  const [iosLatestVersion, setIosLatestVersion] = useState<string>('1.0.0');
+  const [iosMinVersion, setIosMinVersion] = useState<string>('1.0.0');
+  const [iosForceUpdate, setIosForceUpdate] = useState<boolean>(false);
+  const [iosStoreUrl, setIosStoreUrl] = useState<string>('https://apps.apple.com/app/id6470000000');
+
+  const [updateTitleAr, setUpdateTitleAr] = useState<string>('تحديث جديد متوفر');
+  const [updateTitleEn, setUpdateTitleEn] = useState<string>('New Update Available');
+  const [updateMessageAr, setUpdateMessageAr] = useState<string>('يتوفر إصدار جديد من تطبيق ذبائح المملكة بمزايا وتحسينات جديدة. يرجى التحديث للمتابعة.');
+  const [updateMessageEn, setUpdateMessageEn] = useState<string>('A new version of Dhabayih Al-Mamlaka is available with new improvements. Please update to continue.');
 
   // Loyalty states
   const [earningRate, setEarningRate] = useState<number>(1.0);
@@ -72,7 +91,8 @@ export const AdminSettingsView: React.FC = () => {
       const results = await Promise.allSettled([
         adminApi.getLoyaltySettings(),
         adminApi.getPublicSettings(),
-        adminApi.getInvoiceSettings()
+        adminApi.getInvoiceSettings(),
+        adminApi.getAppVersionSettings(),
       ]);
 
       if (results[0].status === 'fulfilled' && results[0].value?.loyaltySettings) {
@@ -107,6 +127,24 @@ export const AdminSettingsView: React.FC = () => {
         setFooterNote(inv.footerNote || 'شكراً لتسوقكم من ذبائح المملكة | خدمة العملاء: 0568741660');
         setVatRate(inv.vatRate || 15);
         setInvoicePrefix(inv.prefix || 'INV-');
+      }
+
+      if (results[3].status === 'fulfilled' && results[3].value?.settings) {
+        const ver = results[3].value.settings;
+        setAndroidLatestVersion(ver.android.latestVersion || '1.0.0');
+        setAndroidMinVersion(ver.android.minVersion || '1.0.0');
+        setAndroidForceUpdate(Boolean(ver.android.forceUpdate));
+        setAndroidStoreUrl(ver.android.storeUrl || 'https://play.google.com/store/apps/details?id=com.dhabayih.lmamlaka');
+
+        setIosLatestVersion(ver.ios.latestVersion || '1.0.0');
+        setIosMinVersion(ver.ios.minVersion || '1.0.0');
+        setIosForceUpdate(Boolean(ver.ios.forceUpdate));
+        setIosStoreUrl(ver.ios.storeUrl || 'https://apps.apple.com/app/id6470000000');
+
+        setUpdateTitleAr(ver.titleAr || 'تحديث جديد متوفر');
+        setUpdateTitleEn(ver.titleEn || 'New Update Available');
+        setUpdateMessageAr(ver.messageAr || 'يتوفر إصدار جديد من تطبيق ذبائح المملكة بمزايا وتحسينات جديدة. يرجى التحديث للمتابعة.');
+        setUpdateMessageEn(ver.messageEn || 'A new version of Dhabayih Al-Mamlaka is available with new improvements. Please update to continue.');
       }
     } catch (err: any) {
       setErrorMsg(err?.message || (isAr ? 'فشل تحميل الإعدادات' : 'Failed to load settings'));
@@ -192,16 +230,49 @@ export const AdminSettingsView: React.FC = () => {
     }
   };
 
+  const handleSaveAppUpdates = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingAppUpdates(true);
+    setSuccessMsg(null);
+    setErrorMsg(null);
+    try {
+      await adminApi.updateAppVersionSettings({
+        android: {
+          latestVersion: androidLatestVersion,
+          minVersion: androidMinVersion,
+          forceUpdate: androidForceUpdate,
+          storeUrl: androidStoreUrl,
+        },
+        ios: {
+          latestVersion: iosLatestVersion,
+          minVersion: iosMinVersion,
+          forceUpdate: iosForceUpdate,
+          storeUrl: iosStoreUrl,
+        },
+        titleAr: updateTitleAr,
+        titleEn: updateTitleEn,
+        messageAr: updateMessageAr,
+        messageEn: updateMessageEn,
+      });
+      setSuccessMsg(isAr ? 'تم حفظ قواعد وإعدادات تحديثات التطبيق بنجاح' : 'App version update settings saved successfully');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err: any) {
+      setErrorMsg(err?.message || (isAr ? 'فشل حفظ إعدادات التحديث' : 'Failed to save app update settings'));
+    } finally {
+      setSavingAppUpdates(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-4 sm:space-y-6 max-w-6xl">
       {/* Banner info */}
-      <div className="bg-gradient-to-r from-primary-950 via-slate-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-primary-900/30">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-            <ShieldCheck className="w-8 h-8 text-primary-400" />
+      <div className="bg-gradient-to-r from-primary-950 via-slate-900 to-slate-900 rounded-3xl p-4 sm:p-6 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-primary-900/30">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-11 h-11 sm:w-14 sm:h-14 bg-white/10 rounded-2xl backdrop-blur-md flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8 text-primary-400" />
           </div>
           <div>
-            <h2 className="text-xl font-black">
+            <h2 className="text-base sm:text-xl font-black">
               {isAr ? 'إعدادات النظام والفوترة والخدمات' : 'System & Services Configuration'}
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-xl">
@@ -215,7 +286,7 @@ export const AdminSettingsView: React.FC = () => {
         <button
           onClick={loadSettings}
           disabled={loading}
-          className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-md transition-all text-white cursor-pointer self-end md:self-auto"
+          className="w-11 h-11 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-md transition-all text-white cursor-pointer self-end sm:self-auto shrink-0"
           title={isAr ? 'تحديث الإعدادات' : 'Reload Settings'}
         >
           <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -223,44 +294,57 @@ export const AdminSettingsView: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab('invoice')}
-          className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`min-h-[44px] flex items-center gap-2 py-2.5 px-3.5 sm:px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'invoice'
-              ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Receipt className="w-4 h-4" />
+          <Receipt className="w-4 h-4 shrink-0" />
           <span>{isAr ? 'إعدادات الفاتورة والطباعة (Invoice & Print)' : 'Invoice & Printing'}</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('contact')}
-          className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`min-h-[44px] flex items-center gap-2 py-2.5 px-3.5 sm:px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'contact'
-              ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <MessageSquare className="w-4 h-4" />
+          <MessageSquare className="w-4 h-4 shrink-0" />
           <span>{isAr ? 'الدعم الفني والواتساب (Support & WhatsApp)' : 'Customer Support'}</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('loyalty')}
-          className={`flex items-center gap-2 py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`min-h-[44px] flex items-center gap-2 py-2.5 px-3.5 sm:px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'loyalty'
-              ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Coins className="w-4 h-4" />
+          <Coins className="w-4 h-4 shrink-0" />
           <span>{isAr ? 'قواعد نقاط الولاء (Loyalty Rewards)' : 'Loyalty Rules'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('app_updates')}
+          className={`min-h-[44px] flex items-center gap-2 py-2.5 px-3.5 sm:px-5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'app_updates'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Smartphone className="w-4 h-4 shrink-0" />
+          <span>{isAr ? 'تحديثات التطبيق (App Updates)' : 'App Updates & Versions'}</span>
         </button>
       </div>
 
@@ -310,7 +394,7 @@ export const AdminSettingsView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                           {isAr ? 'اسم المنشأة بالعربية *' : 'Company Name (Arabic) *'}
@@ -321,7 +405,7 @@ export const AdminSettingsView: React.FC = () => {
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
                           placeholder="مثال: شركة ذبائح المملكة للتجارة"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
                         />
                       </div>
 
@@ -335,7 +419,7 @@ export const AdminSettingsView: React.FC = () => {
                           value={companyNameEn}
                           onChange={(e) => setCompanyNameEn(e.target.value)}
                           placeholder="Dhabayih Lmamlaka Trading Co."
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                         />
                       </div>
 
@@ -351,7 +435,7 @@ export const AdminSettingsView: React.FC = () => {
                           value={vatNumber}
                           onChange={(e) => setVatNumber(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="310198765400003"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                         />
                       </div>
 
@@ -366,7 +450,7 @@ export const AdminSettingsView: React.FC = () => {
                           value={crNumber}
                           onChange={(e) => setCrNumber(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="1010892341"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                         />
                       </div>
 
@@ -380,7 +464,7 @@ export const AdminSettingsView: React.FC = () => {
                           value={invoicePhone}
                           onChange={(e) => setInvoicePhone(e.target.value)}
                           placeholder="0568741660"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                         />
                       </div>
 
@@ -394,7 +478,7 @@ export const AdminSettingsView: React.FC = () => {
                           value={invoiceEmail}
                           onChange={(e) => setInvoiceEmail(e.target.value)}
                           placeholder="info@dhabayih.com"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                         />
                       </div>
 
@@ -407,14 +491,14 @@ export const AdminSettingsView: React.FC = () => {
                           value={invoiceAddress}
                           onChange={(e) => setInvoiceAddress(e.target.value)}
                           placeholder="المملكة العربية السعودية - الرياض - طريق الملك فهد"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Card 2: Print Layout & Paper Format */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-sm space-y-5">
                     <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="p-2.5 bg-blue-50 dark:bg-blue-950/50 rounded-xl text-blue-600 dark:text-blue-400">
                         <Printer className="w-5 h-5" />
@@ -431,12 +515,12 @@ export const AdminSettingsView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                       {/* Thermal 80mm Option */}
                       <button
                         type="button"
                         onClick={() => setPaperFormat('thermal_80')}
-                        className={`p-4 rounded-2xl border text-right cursor-pointer transition-all flex items-start gap-3.5 ${
+                        className={`min-h-[44px] p-4 rounded-2xl border text-right cursor-pointer transition-all flex items-start gap-3.5 ${
                           paperFormat === 'thermal_80'
                             ? 'border-primary-600 bg-primary-50/50 dark:bg-primary-950/40 text-primary-950 dark:text-primary-100 shadow-sm'
                             : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 opacity-70 hover:opacity-100'
@@ -467,7 +551,7 @@ export const AdminSettingsView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setPaperFormat('a4')}
-                        className={`p-4 rounded-2xl border text-right cursor-pointer transition-all flex items-start gap-3.5 ${
+                        className={`min-h-[44px] p-4 rounded-2xl border text-right cursor-pointer transition-all flex items-start gap-3.5 ${
                           paperFormat === 'a4'
                             ? 'border-primary-600 bg-primary-50/50 dark:bg-primary-950/40 text-primary-950 dark:text-primary-100 shadow-sm'
                             : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 opacity-70 hover:opacity-100'
@@ -495,7 +579,7 @@ export const AdminSettingsView: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 pt-2">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                           {isAr ? 'عرض الإيصال (مليمتر)' : 'Receipt Width (mm)'}
@@ -503,7 +587,7 @@ export const AdminSettingsView: React.FC = () => {
                         <select
                           value={receiptWidth}
                           onChange={(e) => setReceiptWidth(Number(e.target.value))}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
                           <option value={80}>80 mm (القياس المعتمد الشائع)</option>
                           <option value={72}>72 mm</option>
@@ -521,7 +605,7 @@ export const AdminSettingsView: React.FC = () => {
                             step="0.1"
                             value={vatRate}
                             onChange={(e) => setVatRate(Number(e.target.value))}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
                           />
                           <span className="absolute top-1/2 -translate-y-1/2 ltr:right-3 rtl:left-3 text-xs font-bold text-slate-400">
                             %
@@ -539,14 +623,14 @@ export const AdminSettingsView: React.FC = () => {
                           value={invoicePrefix}
                           onChange={(e) => setInvoicePrefix(e.target.value)}
                           placeholder="INV-"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                         />
                       </div>
                     </div>
 
                     {/* Toggles */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 pt-2">
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 min-h-[44px]">
                         <div>
                           <span className="block text-xs font-bold text-slate-900 dark:text-slate-100">
                             {isAr ? 'رمز الاستجابة السريع (ZATCA QR)' : 'ZATCA QR Code'}
@@ -558,19 +642,19 @@ export const AdminSettingsView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setShowQr(!showQr)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
                             showQr ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-700'
                           }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                               showQr ? (isRTL ? '-translate-x-6' : 'translate-x-6') : (isRTL ? '-translate-x-1' : 'translate-x-1')
                             }`}
                           />
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 min-h-[44px]">
                         <div>
                           <span className="block text-xs font-bold text-slate-900 dark:text-slate-100">
                             {isAr ? 'إظهار لوجو ذبائح المملكة' : 'Show Store Logo'}
@@ -582,12 +666,12 @@ export const AdminSettingsView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setShowLogo(!showLogo)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
                             showLogo ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-700'
                           }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                               showLogo ? (isRTL ? '-translate-x-6' : 'translate-x-6') : (isRTL ? '-translate-x-1' : 'translate-x-1')
                             }`}
                           />
@@ -597,7 +681,7 @@ export const AdminSettingsView: React.FC = () => {
                   </div>
 
                   {/* Card 3: Notes & Policy */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4">
                     <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 rounded-xl text-amber-600 dark:text-amber-400">
                         <FileText className="w-5 h-5" />
@@ -623,7 +707,7 @@ export const AdminSettingsView: React.FC = () => {
                         value={headerNote}
                         onChange={(e) => setHeaderNote(e.target.value)}
                         placeholder="ذبائح ولحوم بلدية طازجة وفق الشريعة الإسلامية ومفحوصة بيطرياً"
-                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
+                        className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
                       />
                     </div>
 
@@ -636,7 +720,7 @@ export const AdminSettingsView: React.FC = () => {
                         value={footerNote}
                         onChange={(e) => setFooterNote(e.target.value)}
                         placeholder="شكراً لتسوقكم من ذبائح المملكة | خدمة العملاء: 0568741660 | اللحوم الطازجة تحفظ مبردة فور الاستلام"
-                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
                       />
                     </div>
                   </div>
@@ -644,7 +728,7 @@ export const AdminSettingsView: React.FC = () => {
 
                 {/* Right Col: Live Invoice Preview Card */}
                 <div className="space-y-6">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-4">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2">
                         <Receipt className="w-4 h-4 text-primary-600" />
@@ -658,7 +742,7 @@ export const AdminSettingsView: React.FC = () => {
                     </div>
 
                     {/* Paper Mockup */}
-                    <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-[11px] space-y-3 font-mono shadow-inner">
+                    <div className="bg-slate-50 dark:bg-slate-950 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-[11px] space-y-3 font-mono shadow-inner overflow-x-auto">
                       {/* Header */}
                       <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300 dark:border-slate-700">
                         {showLogo && (
@@ -748,7 +832,7 @@ export const AdminSettingsView: React.FC = () => {
                     <button
                       type="submit"
                       disabled={savingInvoice}
-                      className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-black bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-600/20 disabled:opacity-50 transition-all cursor-pointer"
+                      className="min-h-[44px] w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-xs font-black bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-600/20 disabled:opacity-50 transition-all cursor-pointer"
                     >
                       {savingInvoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       <span>{isAr ? 'حفظ إعدادات الفاتورة في النظام' : 'Save Invoice Configuration'}</span>
@@ -761,7 +845,7 @@ export const AdminSettingsView: React.FC = () => {
 
           {/* TAB 2: WHATSAPP & SUPPORT */}
           {activeTab === 'contact' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm max-w-2xl">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-sm max-w-2xl">
               <form onSubmit={handleSaveContact} className="space-y-5">
                 <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                   <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl text-emerald-600">
@@ -778,7 +862,7 @@ export const AdminSettingsView: React.FC = () => {
                 </div>
 
                 {/* Toggle WhatsApp */}
-                <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 min-h-[44px]">
                   <div>
                     <span className="block text-sm font-bold text-slate-900 dark:text-slate-100">
                       {isAr ? 'تفعيل زر الواتساب العائم' : 'Enable Floating WhatsApp Widget'}
@@ -790,12 +874,12 @@ export const AdminSettingsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setWhatsappEnabled(!whatsappEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
                       whatsappEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                         whatsappEnabled ? (isRTL ? '-translate-x-6' : 'translate-x-6') : (isRTL ? '-translate-x-1' : 'translate-x-1')
                       }`}
                     />
@@ -814,7 +898,7 @@ export const AdminSettingsView: React.FC = () => {
                     value={whatsappNumber}
                     onChange={(e) => setWhatsappNumber(e.target.value)}
                     placeholder="+966500000000"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 text-left"
                   />
                 </div>
 
@@ -828,7 +912,7 @@ export const AdminSettingsView: React.FC = () => {
                     value={whatsappDefaultMessage}
                     onChange={(e) => setWhatsappDefaultMessage(e.target.value)}
                     placeholder={isAr ? 'مرحباً، أود الاستفسار عن ذبائح المملكة' : 'Hello, I have an inquiry...'}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
@@ -844,7 +928,7 @@ export const AdminSettingsView: React.FC = () => {
                     value={supportPhone}
                     onChange={(e) => setSupportPhone(e.target.value)}
                     placeholder="920000000"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 text-left"
                   />
                 </div>
 
@@ -853,7 +937,7 @@ export const AdminSettingsView: React.FC = () => {
                   <button
                     type="submit"
                     disabled={savingContact}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all cursor-pointer"
+                    className="min-h-[44px] w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all cursor-pointer"
                   >
                     {savingContact ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     <span>{isAr ? 'حفظ إعدادات التواصل' : 'Save Contact Settings'}</span>
@@ -865,7 +949,7 @@ export const AdminSettingsView: React.FC = () => {
 
           {/* TAB 3: LOYALTY RULES */}
           {activeTab === 'loyalty' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm max-w-2xl">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 shadow-sm max-w-2xl">
               <form onSubmit={handleSaveLoyalty} className="space-y-5">
                 <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                   <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl text-amber-600">
@@ -898,7 +982,7 @@ export const AdminSettingsView: React.FC = () => {
                       min="0"
                       value={earningRate}
                       onChange={(e) => setEarningRate(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                     <span className="absolute top-1/2 -translate-y-1/2 ltr:right-3 rtl:left-3 text-xs font-bold text-slate-400">
                       {isAr ? 'نقطة / 1 ر.س' : 'pts / 1 SAR'}
@@ -923,7 +1007,7 @@ export const AdminSettingsView: React.FC = () => {
                       min="1"
                       value={redemptionRate}
                       onChange={(e) => setRedemptionRate(parseFloat(e.target.value) || 1)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                     <span className="absolute top-1/2 -translate-y-1/2 ltr:right-3 rtl:left-3 text-xs font-bold text-slate-400">
                       {isAr ? 'نقطة = 1 ر.س' : 'pts = 1 SAR'}
@@ -948,7 +1032,7 @@ export const AdminSettingsView: React.FC = () => {
                       min="0"
                       value={minRedemption}
                       onChange={(e) => setMinRedemption(parseInt(e.target.value) || 0)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                     <span className="absolute top-1/2 -translate-y-1/2 ltr:right-3 rtl:left-3 text-xs font-bold text-slate-400">
                       {isAr ? 'نقطة' : 'points'}
@@ -961,7 +1045,7 @@ export const AdminSettingsView: React.FC = () => {
                   <button
                     type="submit"
                     disabled={savingLoyalty}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 disabled:opacity-50 transition-all cursor-pointer"
+                    className="min-h-[44px] w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 disabled:opacity-50 transition-all cursor-pointer"
                   >
                     {savingLoyalty ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     <span>{isAr ? 'حفظ إعدادات برنامج الولاء' : 'Save Loyalty Rules'}</span>
@@ -969,6 +1053,274 @@ export const AdminSettingsView: React.FC = () => {
                 </div>
               </form>
             </div>
+          )}
+
+          {/* TAB 4: APP UPDATES & VERSION MANAGEMENT (FORCE / OPTIONAL) */}
+          {activeTab === 'app_updates' && (
+            <form onSubmit={handleSaveAppUpdates} className="space-y-6 max-w-4xl">
+              {/* Guidance Info Card */}
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs flex items-start gap-4">
+                <div className="p-3 bg-primary-50 dark:bg-primary-950/50 rounded-2xl text-primary-600 shrink-0">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                    {isAr ? 'آلية إدارة تحديثات التطبيق (Force vs Optional Updates)' : 'App Version Rules & Mechanism'}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {isAr
+                      ? '• التحديث الإجباري (Force Update): يظهر عندما يكون إصدار التطبيق لدى العميل أقل من "الحد الأدنى"، أو عند تفعيل زر التحديث الإجباري. يتم حظر استخدام التطبيق حتى يقوم بالترقية من المتجر.\n• التحديث الاختياري (Optional Update): يظهر كإشعار تنبيهي لطيف إذا كان العميل يمتلك إصداراً قديماً ولكن أعلى من الحد الأدنى، مع إمكانية التخطي والمتابعة.'
+                      : '• Force Update: Block app usage until updated when installed version is below the minimum required version, or when Force Update flag is ON.\n• Optional Update: Friendly prompt allowing user to update now or skip for later.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 2-Column Grid: Android & iOS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Android Configuration */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                        AND
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                        {isAr ? 'تطبيق أندرويد (Google Play)' : 'Android Configuration'}
+                      </h4>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      androidForceUpdate
+                        ? 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40'
+                        : 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40'
+                    }`}>
+                      {androidForceUpdate ? (isAr ? 'إجباري مفعل' : 'Force Enabled') : (isAr ? 'اختياري' : 'Optional')}
+                    </span>
+                  </div>
+
+                  {/* Android Latest Version */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'الإصدار الأخير في المتجر (Latest Version)' : 'Latest Store Version'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1.0.1"
+                      value={androidLatestVersion}
+                      onChange={(e) => setAndroidLatestVersion(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  {/* Android Min Supported Version */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'الحد الأدنى للإصدار (Min Required Version)' : 'Minimum Supported Version'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1.0.0"
+                      value={androidMinVersion}
+                      onChange={(e) => setAndroidMinVersion(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {isAr ? 'أي إصدار أقل من هذا سيتم منعه من الدخول وإجباره على التحديث.' : 'Versions below this are forced to update.'}
+                    </p>
+                  </div>
+
+                  {/* Force Update Toggle Switch */}
+                  <div className="pt-2 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {isAr ? 'فرض التحديث الإجباري دائماً' : 'Always Force Update'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {isAr ? 'إغلاق التطبيق حتى يتم التحديث لجميع الإصدارات القديمة' : 'Block older versions unconditionally'}
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={androidForceUpdate}
+                        onChange={(e) => setAndroidForceUpdate(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                    </label>
+                  </div>
+
+                  {/* Android Store URL */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'رابط تطبيق أندرويد في Google Play' : 'Google Play URL'}
+                    </label>
+                    <input
+                      type="url"
+                      value={androidStoreUrl}
+                      onChange={(e) => setAndroidStoreUrl(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+
+                {/* iOS Configuration */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                        iOS
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                        {isAr ? 'تطبيق آيفون (Apple App Store)' : 'iOS Configuration'}
+                      </h4>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      iosForceUpdate
+                        ? 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40'
+                        : 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40'
+                    }`}>
+                      {iosForceUpdate ? (isAr ? 'إجباري مفعل' : 'Force Enabled') : (isAr ? 'اختياري' : 'Optional')}
+                    </span>
+                  </div>
+
+                  {/* iOS Latest Version */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'الإصدار الأخير في المتجر (Latest Version)' : 'Latest Store Version'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1.0.1"
+                      value={iosLatestVersion}
+                      onChange={(e) => setIosLatestVersion(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  {/* iOS Min Supported Version */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'الحد الأدنى للإصدار (Min Required Version)' : 'Minimum Supported Version'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1.0.0"
+                      value={iosMinVersion}
+                      onChange={(e) => setIosMinVersion(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {isAr ? 'أي إصدار أقل من هذا سيتم منعه من الدخول وإجباره على التحديث.' : 'Versions below this are forced to update.'}
+                    </p>
+                  </div>
+
+                  {/* Force Update Toggle Switch */}
+                  <div className="pt-2 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {isAr ? 'فرض التحديث الإجباري دائماً' : 'Always Force Update'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {isAr ? 'إغلاق التطبيق حتى يتم التحديث لجميع الإصدارات القديمة' : 'Block older versions unconditionally'}
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={iosForceUpdate}
+                        onChange={(e) => setIosForceUpdate(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                    </label>
+                  </div>
+
+                  {/* iOS Store URL */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'رابط تطبيق آيفون في App Store' : 'Apple App Store URL'}
+                    </label>
+                    <input
+                      type="url"
+                      value={iosStoreUrl}
+                      onChange={(e) => setIosStoreUrl(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Update Dialog Text & Localization */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  {isAr ? 'نصوص ورسائل نافذة التحديث في التطبيق' : 'Update Dialog Title & Description'}
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'عنوان التنبيه (عربي)' : 'Alert Title (Arabic)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={updateTitleAr}
+                      onChange={(e) => setUpdateTitleAr(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'عنوان التنبيه (إنجليزي)' : 'Alert Title (English)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={updateTitleEn}
+                      onChange={(e) => setUpdateTitleEn(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'رسالة التحديث للعميل (عربي)' : 'Update Message (Arabic)'}
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={updateMessageAr}
+                      onChange={(e) => setUpdateMessageAr(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      {isAr ? 'رسالة التحديث للعميل (إنجليزي)' : 'Update Message (English)'}
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={updateMessageEn}
+                      onChange={(e) => setUpdateMessageEn(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Action */}
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={savingAppUpdates}
+                  className="min-h-[44px] flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-md shadow-primary-600/20 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  {savingAppUpdates ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>{isAr ? 'حفظ إعدادات تحديثات التطبيق' : 'Save App Update Settings'}</span>
+                </button>
+              </div>
+            </form>
           )}
         </>
       )}

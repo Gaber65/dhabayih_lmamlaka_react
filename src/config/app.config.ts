@@ -10,7 +10,7 @@ export const APP_CONFIG = {
   apiBaseUrl: (
     import.meta.env.VITE_API_BASE_URL !== undefined && import.meta.env.VITE_API_BASE_URL !== ''
       ? import.meta.env.VITE_API_BASE_URL
-      : (import.meta.env.DEV ? '' : 'https://api.zbayhalmmlkh.network')
+      : 'https://api.zbayhalmmlkh.network'
   ).replace(/\/+$/, ''),
 
   /**

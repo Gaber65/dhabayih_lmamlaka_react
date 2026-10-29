@@ -173,15 +173,19 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   };
   const lines =
     invoiceData?.lines ||
-    initialOrder?.lines?.map((l) => ({
+    initialOrder?.lines?.map((l: any) => ({
       id: l.id,
       name: l.name,
       quantity: l.quantity,
-      price_unit: l.priceUnit,
-      price_subtotal: l.priceSubtotal,
-      cutting_option: l.cuttingOption?.name,
-      packaging: l.packaging?.name,
-      excluded_parts: l.excludedParts?.map((p) => p.name) || [],
+      price_unit: l.priceUnit || l.price_unit,
+      price_subtotal: l.priceSubtotal || l.price_subtotal,
+      size: l.size_name || l.sizeName || (typeof l.size === 'object' ? l.size?.name : l.size) || '',
+      size_price: Number(l.size_price || l.sizePrice || l.size?.price || 0),
+      cutting_option: l.cutting_name || l.cuttingOption?.name || (typeof l.cuttingOption === 'string' ? l.cuttingOption : l.cutting_option),
+      cutting_price: Number(l.cutting_price || l.cuttingPrice || l.cuttingOption?.extraPrice || 0),
+      packaging: l.packaging_name || l.packaging?.name || (typeof l.packaging === 'string' ? l.packaging : l.packaging),
+      packaging_price: Number(l.packaging_price || l.packagingPrice || l.packaging?.extraPrice || 0),
+      excluded_parts: Array.isArray(l.excludedParts) ? l.excludedParts.map((p: any) => (typeof p === 'object' ? p.name : p)) : (l.excluded_parts || []),
     })) ||
     [];
 
@@ -196,7 +200,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       invoiceData?.summary?.loyalty_discount_amount ?? initialOrder?.loyaltyDiscountAmount ?? 0
     ),
     tax_amount: taxAmount,
-    delivery_fee: Number(invoiceData?.summary?.delivery_fee ?? 31.95),
+    delivery_fee: 0,
     total: Number(invoiceData?.summary?.total ?? initialOrder?.total ?? 0),
   };
 
@@ -214,25 +218,34 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         } bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[95vh] flex flex-col transition-all duration-300`}
       >
         {/* Action Header (Excluded in print) */}
-        <div className="no-print flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50/90">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
-              <FileText className="w-4 h-4" />
+        <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-slate-50/90">
+          <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-slate-900">
+                  {t('simplified_tax_invoice', 'فاتورة ضريبية مبسطة')}
+                </h2>
+                <p className="text-[11px] text-slate-500 font-mono">{orderNumber}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-900">
-                {t('simplified_tax_invoice', 'فاتورة ضريبية مبسطة')}
-              </h2>
-              <p className="text-[11px] text-slate-500 font-mono">{orderNumber}</p>
-            </div>
+
+            <button
+              onClick={onClose}
+              className="sm:hidden w-11 h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition cursor-pointer shrink-0"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Format Switcher */}
-          <div className="flex items-center bg-slate-200/80 p-0.5 rounded-xl border border-slate-300 text-xs">
+          <div className="flex items-center bg-slate-200/80 p-1 rounded-xl border border-slate-300 text-xs w-full sm:w-auto justify-center">
             <button
               type="button"
               onClick={() => setFormat('thermal')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+              className={`min-h-[40px] flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer whitespace-nowrap ${
                 format === 'thermal'
                   ? 'bg-white text-teal-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -244,7 +257,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             <button
               type="button"
               onClick={() => setFormat('a4')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+              className={`min-h-[40px] flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition cursor-pointer whitespace-nowrap ${
                 format === 'a4'
                   ? 'bg-white text-teal-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -255,10 +268,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>{t('print_invoice', 'طباعة')}</span>
@@ -266,7 +279,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
             <button
               onClick={handleDownloadPdf}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              className="min-h-[44px] flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>{t('download_pdf', 'تحميل PDF')}</span>
@@ -274,7 +287,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition cursor-pointer"
+              className="hidden sm:flex w-11 h-11 items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition cursor-pointer shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
@@ -357,13 +370,19 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                       <td className="py-1.5 text-right">
                         <div className="font-bold text-slate-900">{line.name}</div>
                         {line.size && (
-                          <div className="text-[10px] text-teal-700 font-medium">حجم: {line.size}</div>
+                          <div className="text-[10px] text-teal-700 font-medium">
+                            حجم: {line.size} {line.size_price > 0 ? `(${line.size_price} ر.س)` : ''}
+                          </div>
                         )}
                         {line.cutting_option && (
-                          <div className="text-[10px] text-slate-500">✂️ {line.cutting_option}</div>
+                          <div className="text-[10px] text-slate-500">
+                            ✂️ {line.cutting_option} {line.cutting_price > 0 ? `(+${line.cutting_price} ر.س)` : ''}
+                          </div>
                         )}
                         {line.packaging && (
-                          <div className="text-[10px] text-slate-500">📦 {line.packaging}</div>
+                          <div className="text-[10px] text-slate-500">
+                            📦 {line.packaging} {line.packaging_price > 0 ? `(+${line.packaging_price} ر.س)` : ''}
+                          </div>
                         )}
                         {line.excluded_parts && line.excluded_parts.length > 0 && (
                           <div className="text-[10px] text-amber-700">🚫 بدون: {line.excluded_parts.join(', ')}</div>
@@ -403,14 +422,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                   <span>ضريبة القيمة المضافة (15%):</span>
                   <span className="font-mono font-bold">{Number(summary.tax_amount).toFixed(2)} ر.س</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>التوصيل:</span>
-                  <span className="font-mono font-bold">
-                    {Number(summary.delivery_fee) > 0
-                      ? `${Number(summary.delivery_fee).toFixed(2)} ر.س`
-                      : 'مجاني'}
-                  </span>
-                </div>
+                {/* Delivery fee line removed per business requirement */}
                 <div className="flex justify-between items-center text-sm font-black border-t-2 border-slate-900 pt-1.5 mt-1 text-slate-900">
                   <span>الإجمالي الكلي:</span>
                   <span className="font-mono text-base">{Number(summary.total).toFixed(2)} ر.س</span>
@@ -554,8 +566,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               </div>
 
               {/* Items Table */}
-              <div className="border border-slate-200 rounded-2xl overflow-hidden mb-6">
-                <table className="w-full text-xs text-right">
+              <div className="border border-slate-200 rounded-2xl overflow-hidden overflow-x-auto mb-6">
+                <table className="w-full text-xs text-right min-w-[500px]">
                   <thead className="bg-teal-700 text-white font-bold">
                     <tr>
                       <th className="py-2.5 px-3 text-center w-10">#</th>
@@ -574,13 +586,21 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                           <div className="font-bold text-slate-900">{line.name}</div>
                           {line.size && (
                             <div className="text-[11px] text-teal-700 font-medium mt-0.5">
-                              الحجم: {line.size}
+                              الحجم: {line.size} {line.size_price > 0 ? `(${line.size_price} ر.س)` : ''}
                             </div>
                           )}
                         </td>
                         <td className="py-3 px-3 text-[11px] text-slate-600">
-                          {line.cutting_option && <div>✂️ {line.cutting_option}</div>}
-                          {line.packaging && <div>📦 {line.packaging}</div>}
+                          {line.cutting_option && (
+                            <div>
+                              ✂️ {line.cutting_option} {line.cutting_price > 0 ? `(+${line.cutting_price} ر.س)` : ''}
+                            </div>
+                          )}
+                          {line.packaging && (
+                            <div>
+                              📦 {line.packaging} {line.packaging_price > 0 ? `(+${line.packaging_price} ر.س)` : ''}
+                            </div>
+                          )}
                           {line.excluded_parts && line.excluded_parts.length > 0 && (
                             <div className="text-amber-700">🚫 بدون: {line.excluded_parts.join(', ')}</div>
                           )}
@@ -636,14 +656,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                     <span>ضريبة القيمة المضافة (15%):</span>
                     <span className="font-mono font-bold">{Number(summary.tax_amount).toFixed(2)} ر.س</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>رسوم التوصيل المبرد:</span>
-                    <span className="font-mono font-bold">
-                      {Number(summary.delivery_fee) > 0
-                        ? `${Number(summary.delivery_fee).toFixed(2)} ر.س`
-                        : 'مجاني'}
-                    </span>
-                  </div>
+                  {/* Delivery fee line removed per business requirement */}
                   <div className="flex justify-between items-center text-sm font-black border-t border-slate-200 pt-2 text-teal-700">
                     <span>الإجمالي الكلي المستحق:</span>
                     <span className="font-mono text-base">{Number(summary.total).toFixed(2)} ر.س</span>

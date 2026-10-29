@@ -34,10 +34,13 @@ import {
   Layers,
   ArrowRight,
   Printer,
-  Receipt
+  Receipt,
+  Bell,
+  Sparkles,
 } from 'lucide-react';
 import { adminApi, AdminOrder } from '../api/adminApi';
 import { useLanguageStore } from '../../store/useLanguageStore';
+import { useAdminNotificationStore } from '../store/useAdminNotificationStore';
 import { InvoiceModal } from '../../components/order/InvoiceModal';
 
 type StatusKey = 'all' | 'pending' | 'confirmed' | 'preparing' | 'ready_pickup' | 'out_delivery' | 'delivered' | 'cancelled';
@@ -74,6 +77,8 @@ export const AdminOrdersView: React.FC = () => {
   const [draggingOrderId, setDraggingOrderId] = useState<number | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
+  const { newOrderIds, clearNewBadge } = useAdminNotificationStore();
+
   const loadOrders = async () => {
     setLoading(true);
     setError(null);
@@ -90,6 +95,51 @@ export const AdminOrdersView: React.FC = () => {
   useEffect(() => {
     loadOrders();
   }, []);
+
+  // Listen to real-time new incoming orders and focus events from background poller
+  useEffect(() => {
+    const handleNewOrderArrived = (e: any) => {
+      const { orders: newOnes } = e.detail || {};
+      if (newOnes && Array.isArray(newOnes)) {
+        setOrders((prev) => {
+          const prevIds = new Set(prev.map((o) => o.id));
+          const toAdd = newOnes.filter((o: any) => !prevIds.has(o.id));
+          return [...toAdd, ...prev];
+        });
+      }
+    };
+
+    const handleFocusOrder = async (e: any) => {
+      const orderId = e.detail?.orderId;
+      if (!orderId) return;
+      setOrders((currentOrders) => {
+        const found = currentOrders.find((o) => o.id === orderId);
+        if (found) {
+          setSelectedOrder(found);
+          clearNewBadge(orderId);
+        } else {
+          adminApi
+            .getOrderById(orderId)
+            .then((full) => {
+              if (full) {
+                setSelectedOrder(full);
+                clearNewBadge(orderId);
+              }
+            })
+            .catch(() => {});
+        }
+        return currentOrders;
+      });
+    };
+
+    window.addEventListener('admin_new_order_arrived', handleNewOrderArrived);
+    window.addEventListener('admin_focus_order', handleFocusOrder);
+
+    return () => {
+      window.removeEventListener('admin_new_order_arrived', handleNewOrderArrived);
+      window.removeEventListener('admin_focus_order', handleFocusOrder);
+    };
+  }, [clearNewBadge]);
 
   // When selectedOrder changes, fetch full details from backend
   useEffect(() => {
@@ -242,6 +292,11 @@ export const AdminOrdersView: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
+      // Hide incomplete online payment sessions that have not been paid yet
+      if (o.state === 'pending_payment' && o.paymentStatus !== 'paid') {
+        return false;
+      }
+
       // Month filter
       if (monthFilter !== 'all') {
         if (!o.date || !o.date.startsWith(monthFilter)) return false;
@@ -250,7 +305,7 @@ export const AdminOrdersView: React.FC = () => {
       // Status filter
       if (statusFilter !== 'all') {
         const s = o.state;
-        if (statusFilter === 'pending' && !['draft', 'pending', 'pending_payment'].includes(s)) return false;
+        if (statusFilter === 'pending' && !['draft', 'pending'].includes(s)) return false;
         if (statusFilter === 'confirmed' && s !== 'confirmed') return false;
         if (statusFilter === 'preparing' && !['preparing', 'in_preparation'].includes(s)) return false;
         if (statusFilter === 'ready_pickup' && s !== 'ready_pickup') return false;
@@ -292,6 +347,7 @@ export const AdminOrdersView: React.FC = () => {
     { id: 'preparing', titleAr: 'قيد الذبح والتجهيز', titleEn: 'Preparing', targetState: 'preparing', states: ['preparing', 'in_preparation'] },
     { id: 'out_delivery', titleAr: 'في طريق التوصيل', titleEn: 'Out for Delivery', targetState: 'out_delivery', states: ['out_delivery', 'in_delivery', 'ready_pickup'] },
     { id: 'delivered', titleAr: 'تم التسليم بنجاح', titleEn: 'Delivered', targetState: 'delivered', states: ['delivered', 'done'] },
+    { id: 'cancelled', titleAr: 'طلبات ملغية', titleEn: 'Cancelled', targetState: 'cancelled', states: ['cancelled'] },
   ];
 
   const handleExportCSV = () => {
@@ -318,24 +374,24 @@ export const AdminOrdersView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
             {isAr ? 'إدارة ومسار تجهيز الطلبات' : 'Orders & Butchery Dispatch'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
-            {isAr ? `إجمالي ${orders.length} طلب مسجل عبر منصة أودو (اسحب الطلب لتغيير حالته في الكانبان)` : `Total ${orders.length} orders in Odoo (Drag & Drop cards between columns)`}
+            {isAr ? `إجمالي ${orders.length} طلب مسجل عبر منصة أودو` : `Total ${orders.length} orders in Odoo`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Dual View Mode Switcher */}
-          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[44px]">
             <button
               onClick={() => setViewMode('board')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'board'
                   ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-gold-400 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -343,11 +399,11 @@ export const AdminOrdersView: React.FC = () => {
               title={isAr ? 'عرض اللوحة (Kanban)' : 'Board View'}
             >
               <LayoutGrid size={15} />
-              <span className="hidden md:inline">{isAr ? 'لوحة المسار' : 'Board'}</span>
+              <span>{isAr ? 'اللوحة' : 'Board'}</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-gold-400 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -355,13 +411,13 @@ export const AdminOrdersView: React.FC = () => {
               title={isAr ? 'عرض الجدول' : 'Table View'}
             >
               <TableIcon size={15} />
-              <span className="hidden md:inline">{isAr ? 'جدول الطلبات' : 'Table'}</span>
+              <span>{isAr ? 'الجدول' : 'Table'}</span>
             </button>
           </div>
 
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-xs cursor-pointer"
           >
             <Download size={14} className="text-slate-400" />
             <span>{isAr ? 'تصدير CSV' : 'Export'}</span>
@@ -369,8 +425,9 @@ export const AdminOrdersView: React.FC = () => {
 
           <button
             onClick={loadOrders}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-xs cursor-pointer"
+            className="min-w-[44px] min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center transition shadow-xs cursor-pointer"
             title={isAr ? 'تحديث' : 'Refresh'}
+            aria-label={isAr ? 'تحديث' : 'Refresh'}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -378,34 +435,34 @@ export const AdminOrdersView: React.FC = () => {
       </div>
 
       {/* Filters Toolbar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-slate-400" />
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={isAr ? 'ابحث برقم الطلب، اسم العميل، أو الهاتف...' : 'Search order #, customer, phone...'}
-              className="w-full ps-9 pe-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+              className="w-full ps-9 pe-3 py-2.5 min-h-[44px] rounded-xl text-xs sm:text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
             />
           </div>
 
           {/* Sub Filters including MONTH FILTER */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
               <Filter size={13} />
               <span>{isAr ? 'تصفية:' : 'Filter:'}</span>
             </div>
 
             {/* MONTH FILTER (Requested by User) */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center flex-1 sm:flex-none">
               <Calendar size={13} className="absolute start-2.5 text-brand-600 pointer-events-none" />
               <select
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(e.target.value)}
-                className="ps-7 pe-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+                className="w-full sm:w-auto ps-7 pe-3 py-2 min-h-[44px] rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
               >
                 <option value="all">{isAr ? ' كل الأشهر' : ' All Months'}</option>
                 {availableMonths.map((m) => (
@@ -419,7 +476,7 @@ export const AdminOrdersView: React.FC = () => {
             <select
               value={deliveryFilter}
               onChange={(e) => setDeliveryFilter(e.target.value as any)}
-              className="px-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold focus:outline-none cursor-pointer"
+              className="flex-1 sm:flex-none px-3 py-2 min-h-[44px] rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold focus:outline-none cursor-pointer"
             >
               <option value="all">{isAr ? 'كل طرق الاستلام' : 'All Delivery Types'}</option>
               <option value="delivery">{isAr ? 'توصيل للمنزل' : 'Home Delivery'}</option>
@@ -429,7 +486,7 @@ export const AdminOrdersView: React.FC = () => {
             <select
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value as any)}
-              className="px-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold focus:outline-none cursor-pointer"
+              className="flex-1 sm:flex-none px-3 py-2 min-h-[44px] rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold focus:outline-none cursor-pointer"
             >
               <option value="all">{isAr ? 'كل حالات الدفع' : 'All Payment States'}</option>
               <option value="paid">{isAr ? 'مدفوع' : 'Paid'}</option>
@@ -439,7 +496,7 @@ export const AdminOrdersView: React.FC = () => {
         </div>
 
         {/* Status Pill Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-t border-slate-100 dark:border-slate-800 pt-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-t border-slate-100 dark:border-slate-800 pt-3 no-scrollbar -webkit-overflow-scrolling-touch">
           {[
             { id: 'all', label: isAr ? 'الكل' : 'All' },
             { id: 'pending', label: isAr ? 'جديد' : 'Pending' },
@@ -454,7 +511,7 @@ export const AdminOrdersView: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center justify-center ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-xs shadow-brand-900/30'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -493,7 +550,7 @@ export const AdminOrdersView: React.FC = () => {
                     handleStatusChange(orderId, stage.targetState);
                   }
                 }}
-                className={`flex flex-col rounded-2xl p-3 w-[290px] sm:w-[310px] shrink-0 max-h-[750px] transition-all duration-200 ${
+                className={`flex flex-col rounded-2xl p-3 w-[84vw] max-w-[320px] sm:w-[310px] shrink-0 max-h-[750px] transition-all duration-200 ${
                   isOver
                     ? 'bg-brand-500/10 border-2 border-dashed border-brand-500 ring-2 ring-brand-500/20'
                     : 'bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80'
@@ -532,10 +589,15 @@ export const AdminOrdersView: React.FC = () => {
                             setDraggingOrderId(o.id);
                           }}
                           onDragEnd={() => setDraggingOrderId(null)}
-                          onClick={() => setSelectedOrder(o)}
+                          onClick={() => {
+                            setSelectedOrder(o);
+                            clearNewBadge(o.id);
+                          }}
                           className={`p-3.5 rounded-xl bg-white dark:bg-slate-900 border transition cursor-grab active:cursor-grabbing space-y-2.5 group relative shadow-xs hover:border-brand-500/50 hover:shadow-md ${
                             isDragging
                               ? 'opacity-40 border-dashed border-brand-500 scale-95'
+                              : newOrderIds.includes(o.id)
+                              ? 'border-emerald-400 ring-1 ring-emerald-300 dark:border-emerald-600'
                               : 'border-slate-200/90 dark:border-slate-800'
                           }`}
                         >
@@ -545,15 +607,27 @@ export const AdminOrdersView: React.FC = () => {
                               <span className="text-xs font-black text-slate-900 dark:text-slate-100 font-mono group-hover:text-brand-600 transition">
                                 {o.name}
                               </span>
+                              {newOrderIds.includes(o.id) && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[9px] font-black animate-pulse flex items-center gap-1 shadow-2xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                  {isAr ? 'جديد' : 'NEW'}
+                                </span>
+                              )}
                             </div>
                             <span
                               className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
-                                o.paymentStatus === 'paid'
+                                o.state === 'cancelled' || o.paymentStatus === 'cancelled'
+                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                                  : o.paymentStatus === 'paid'
                                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                                   : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
                               }`}
                             >
-                              {o.paymentStatus === 'paid' ? (isAr ? 'مدفوع' : 'Paid') : isAr ? 'غير مدفوع' : 'Unpaid'}
+                              {o.state === 'cancelled' || o.paymentStatus === 'cancelled'
+                                ? (isAr ? 'ملغي' : 'Cancelled')
+                                : o.paymentStatus === 'paid'
+                                ? (isAr ? 'مدفوع' : 'Paid')
+                                : (isAr ? 'غير مدفوع (بانتظار السداد)' : 'Unpaid')}
                             </span>
                           </div>
 
@@ -603,109 +677,240 @@ export const AdminOrdersView: React.FC = () => {
         </div>
       )}
 
-      {/* ── View 2: Data Table ────────────────────────────────────────────────────── */}
+      {/* ── View 2: Data Table & Mobile Cards ────────────────────────────────────────── */}
       {viewMode === 'table' && (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-start text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4 text-start">{isAr ? 'رقم الطلب' : 'Order Ref'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'العميل' : 'Customer'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'التاريخ' : 'Date'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'طريقة الاستلام' : 'Delivery'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'طريقة الدفع' : 'Payment Method'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'حالة الدفع' : 'Payment Status'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'حالة الطلب' : 'Status'}</th>
-                  <th className="py-3 px-4 text-start">{isAr ? 'الإجمالي' : 'Total'}</th>
-                  <th className="py-3 px-4 text-center">{isAr ? 'إجراءات' : 'Actions'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {filteredOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
-                      {isAr ? 'لا توجد طلبات مطابقة للفلتر المحدد' : 'No matching orders found'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOrders.map((o) => {
-                    const statusMeta = getStatusMeta(o.state);
+        <div className="space-y-4">
+          {/* Mobile Cards View (Visible on screens < md) */}
+          <div className="block md:hidden space-y-3">
+            {filteredOrders.length === 0 ? (
+              <div className="py-12 px-4 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs">
+                {isAr ? 'لا توجد طلبات مطابقة للفلتر المحدد' : 'No matching orders found'}
+              </div>
+            ) : (
+              filteredOrders.map((o) => {
+                const statusMeta = getStatusMeta(o.state);
+                const isPaid = o.paymentStatus === 'paid';
 
-                    return (
-                      <tr
-                        key={o.id}
-                        onClick={() => setSelectedOrder(o)}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition cursor-pointer"
-                      >
-                        <td className="py-3.5 px-4 font-mono font-black text-brand-600 dark:text-gold-400">
+                return (
+                  <div
+                    key={o.id}
+                    onClick={() => {
+                      setSelectedOrder(o);
+                      clearNewBadge(o.id);
+                    }}
+                    className={`p-4 rounded-2xl bg-white dark:bg-slate-900 border transition cursor-pointer shadow-xs space-y-3 ${
+                      newOrderIds.includes(o.id)
+                        ? 'border-emerald-400 ring-1 ring-emerald-300 dark:border-emerald-600'
+                        : 'border-slate-200/90 dark:border-slate-800'
+                    }`}
+                  >
+                    {/* Header Row: Order Number + Status Badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-sm text-brand-600 dark:text-gold-400">
                           {o.name}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <p className="font-bold text-slate-900 dark:text-slate-100">{o.customerName || '-'}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{o.customerPhone || '-'}</p>
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
-                          {o.date?.replace('T', ' ').slice(0, 16) || '-'}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="text-slate-700 dark:text-slate-300">
-                            {o.deliveryType === 'delivery' || o.deliveryType === 'address' ? (isAr ? 'توصيل مبرد' : 'Delivery') : isAr ? 'استلام فرع' : 'Pickup'}
+                        </span>
+                        {newOrderIds.includes(o.id) && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black animate-pulse">
+                            {isAr ? 'جديد' : 'NEW'}
                           </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">
-                          {o.paymentMethod || 'Cash on Delivery'}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
-                              o.paymentStatus === 'paid'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                            }`}
-                          >
-                            {o.paymentStatus === 'paid' ? (isAr ? 'مدفوع' : 'Paid') : isAr ? 'غير مدفوع' : 'Unpaid'}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusMeta.color}`}>
-                            {isAr ? statusMeta.labelAr : statusMeta.labelEn}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-black text-slate-900 dark:text-slate-100">
-                          {o.total} <span className="text-[10px] font-normal text-slate-400">{isAr ? 'ر.س' : 'SAR'}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInvoiceOrderId(o.id);
-                                setInvoiceModalOpen(true);
-                              }}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/60 transition cursor-pointer"
-                              title={isAr ? 'طباعة الفاتورة' : 'Print Invoice'}
+                        )}
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusMeta.color}`}>
+                        {isAr ? statusMeta.labelAr : statusMeta.labelEn}
+                      </span>
+                    </div>
+
+                    {/* Customer Info */}
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-slate-900 dark:text-slate-100">
+                        {o.customerName || (isAr ? 'عميل بدون اسم' : 'Unnamed Customer')}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                        <span>{o.customerPhone || '-'}</span>
+                        <span className="flex items-center gap-1">
+                          <Calendar size={11} />
+                          {o.date?.slice(0, 16).replace('T', ' ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Badges: Delivery & Payment Status */}
+                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">
+                        {o.deliveryType === 'delivery' || o.deliveryType === 'address'
+                          ? (isAr ? 'توصيل مبرد' : 'Home Delivery')
+                          : (isAr ? 'استلام فرع' : 'Pickup')}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-md font-bold ${
+                          isPaid
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                        }`}
+                      >
+                        {isPaid ? (isAr ? 'مدفوع' : 'Paid') : (isAr ? 'غير مدفوع' : 'Unpaid')}
+                      </span>
+                      <span className="text-slate-400 font-medium text-[10px]">
+                        {o.paymentMethod || 'Cash'}
+                      </span>
+                    </div>
+
+                    {/* Footer Row: Total & Touch-Friendly Actions */}
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <span className="font-mono font-black text-sm text-slate-900 dark:text-slate-100">
+                        {o.total} <span className="text-[11px] font-normal text-slate-400">{isAr ? 'ر.س' : 'SAR'}</span>
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInvoiceOrderId(o.id);
+                            setInvoiceModalOpen(true);
+                          }}
+                          className="min-h-[44px] px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                        >
+                          <Printer size={14} />
+                          <span>{isAr ? 'فاتورة' : 'Invoice'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedOrder(o);
+                          }}
+                          className="min-h-[44px] px-3.5 rounded-xl bg-brand-600 text-white font-bold text-xs flex items-center gap-1.5 hover:bg-brand-700 transition shadow-xs"
+                        >
+                          <Eye size={14} />
+                          <span>{isAr ? 'تفاصيل' : 'Details'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Data Table (Visible on screens md and up) */}
+          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-start text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4 text-start">{isAr ? 'رقم الطلب' : 'Order Ref'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'العميل' : 'Customer'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'التاريخ' : 'Date'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'طريقة الاستلام' : 'Delivery'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'طريقة الدفع' : 'Payment Method'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'حالة الدفع' : 'Payment Status'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'حالة الطلب' : 'Status'}</th>
+                    <th className="py-3 px-4 text-start">{isAr ? 'الإجمالي' : 'Total'}</th>
+                    <th className="py-3 px-4 text-center">{isAr ? 'إجراءات' : 'Actions'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-slate-400">
+                        {isAr ? 'لا توجد طلبات مطابقة للفلتر المحدد' : 'No matching orders found'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((o) => {
+                      const statusMeta = getStatusMeta(o.state);
+
+                      return (
+                        <tr
+                          key={o.id}
+                          onClick={() => {
+                            setSelectedOrder(o);
+                            clearNewBadge(o.id);
+                          }}
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition cursor-pointer ${
+                            newOrderIds.includes(o.id) ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''
+                          }`}
+                        >
+                          <td className="py-3.5 px-4 font-mono font-black text-brand-600 dark:text-gold-400">
+                            <div className="flex items-center gap-2">
+                              <span>{o.name}</span>
+                              {newOrderIds.includes(o.id) && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[9px] font-black animate-pulse flex items-center gap-1 shadow-2xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                  {isAr ? 'جديد' : 'NEW'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <p className="font-bold text-slate-900 dark:text-slate-100">{o.customerName || '-'}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{o.customerPhone || '-'}</p>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                            {o.date?.replace('T', ' ').slice(0, 16) || '-'}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="text-slate-700 dark:text-slate-300">
+                              {o.deliveryType === 'delivery' || o.deliveryType === 'address' ? (isAr ? 'توصيل مبرد' : 'Delivery') : isAr ? 'استلام فرع' : 'Pickup'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">
+                            {o.paymentMethod || 'Cash on Delivery'}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                                o.paymentStatus === 'paid'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                              }`}
                             >
-                              <Printer size={15} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedOrder(o);
-                              }}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                              title={isAr ? 'عرض التفاصيل الكاملة' : 'View Details'}
-                            >
-                              <Eye size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                              {o.paymentStatus === 'paid' ? (isAr ? 'مدفوع' : 'Paid') : isAr ? 'غير مدفوع' : 'Unpaid'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusMeta.color}`}>
+                              {isAr ? statusMeta.labelAr : statusMeta.labelEn}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-black text-slate-900 dark:text-slate-100">
+                            {o.total} <span className="text-[10px] font-normal text-slate-400">{isAr ? 'ر.س' : 'SAR'}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setInvoiceOrderId(o.id);
+                                  setInvoiceModalOpen(true);
+                                }}
+                                className="min-w-[36px] min-h-[36px] p-1.5 rounded-lg text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/60 transition cursor-pointer flex items-center justify-center"
+                                title={isAr ? 'طباعة الفاتورة' : 'Print Invoice'}
+                              >
+                                <Printer size={15} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOrder(o);
+                                }}
+                                className="min-w-[36px] min-h-[36px] p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
+                                title={isAr ? 'عرض التفاصيل الكاملة' : 'View Details'}
+                              >
+                                <Eye size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -715,47 +920,48 @@ export const AdminOrdersView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="w-full max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col justify-between overflow-hidden border-s border-slate-200 dark:border-slate-800">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-gold-400 flex items-center justify-center font-bold">
+            <div className="p-3.5 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30 gap-2">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="size-10 rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-gold-400 flex items-center justify-center font-bold shrink-0">
                   <ShoppingBag size={20} />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100 font-mono">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 font-mono truncate">
                       {selectedOrder.name}
                     </h3>
                     <button
                       onClick={() => handleCopy(selectedOrder.name)}
-                      className="text-slate-400 hover:text-slate-600 transition"
+                      className="min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-400 hover:text-slate-600 transition shrink-0"
                       title="نسخ رقم الطلب"
                     >
                       {copiedRef === selectedOrder.name ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                     </button>
                   </div>
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">{selectedOrder.date?.replace('T', ' ')}</p>
+                  <p className="text-[11px] text-slate-400 font-mono">{selectedOrder.date?.replace('T', ' ')}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
                     setInvoiceOrderId(selectedOrder.id);
                     setInvoiceModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800 hover:bg-primary-100 transition cursor-pointer"
+                  className="min-h-[44px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800 hover:bg-primary-100 transition cursor-pointer"
                   title={isAr ? 'طباعة الفاتورة' : 'Print Invoice'}
                 >
                   <Printer size={14} />
                   <span className="hidden sm:inline">{isAr ? 'طباعة الفاتورة' : 'Print'}</span>
                 </button>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusMeta(selectedOrder.state).color}`}>
+                <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold border ${getStatusMeta(selectedOrder.state).color}`}>
                   {isAr ? getStatusMeta(selectedOrder.state).labelAr : getStatusMeta(selectedOrder.state).labelEn}
                 </span>
                 <button
                   onClick={() => setSelectedOrder(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer flex items-center justify-center"
+                  aria-label={isAr ? 'إغلاق' : 'Close'}
                 >
                   <X size={18} />
                 </button>
@@ -946,16 +1152,24 @@ export const AdminOrdersView: React.FC = () => {
                             </div>
 
                             {/* Butchery Customization Options */}
-                            {(item.cuttingOption || item.packaging || (item.excludedParts && item.excludedParts.length > 0)) && (
+                            {(item.size_name || item.cuttingOption || item.packaging || (item.excludedParts && item.excludedParts.length > 0)) && (
                               <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex flex-wrap gap-1.5 text-[10px]">
+                                {item.size_name && (
+                                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-bold">
+                                    {isAr ? 'الحجم:' : 'Size:'} {item.size_name}
+                                    {item.size_price > 0 ? ` (${item.size_price} ${isAr ? 'ر.س' : 'SAR'})` : ''}
+                                  </span>
+                                )}
                                 {item.cuttingOption && (
                                   <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 font-bold">
                                     {isAr ? 'التقطيع:' : 'Cut:'} {typeof item.cuttingOption === 'object' ? item.cuttingOption.name : item.cuttingOption}
+                                    {item.cutting_price > 0 ? ` (+${item.cutting_price} ${isAr ? 'ر.س' : 'SAR'})` : ''}
                                   </span>
                                 )}
                                 {item.packaging && (
                                   <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-bold">
                                     {isAr ? 'التغليف:' : 'Pack:'} {typeof item.packaging === 'object' ? item.packaging.name : item.packaging}
+                                    {item.packaging_price > 0 ? ` (+${item.packaging_price} ${isAr ? 'ر.س' : 'SAR'})` : ''}
                                   </span>
                                 )}
                                 {item.excludedParts && item.excludedParts.length > 0 && (
@@ -985,11 +1199,20 @@ export const AdminOrdersView: React.FC = () => {
 
                     <div className="space-y-1.5 text-xs">
                       <div className="flex items-center justify-between text-slate-500">
-                        <span>{isAr ? 'طريقة الدفع:' : 'Payment Method:'}</span>
+                        <span>{isAr ? 'طريقة وبوابة الدفع:' : 'Payment Method & Provider:'}</span>
                         <span className="font-bold text-slate-800 dark:text-slate-200">
-                          {orderDetails?.paymentMethod || selectedOrder.paymentMethod || 'Cash on Delivery'}
+                          {orderDetails?.paymentMethod || selectedOrder.paymentMethod || 'Moyasar'}
                         </span>
                       </div>
+                      {(orderDetails?.slaughterDate || (selectedOrder as any).slaughterDate) && (
+                        <div className="flex items-center justify-between text-slate-500">
+                          <span>{isAr ? 'موعد الذبح والتجهيز:' : 'Slaughter Schedule:'}</span>
+                          <span className="font-bold text-primary-600 dark:text-primary-400 font-mono">
+                            {orderDetails?.slaughterDate || (selectedOrder as any).slaughterDate}{' '}
+                            {orderDetails?.slaughterTime || (selectedOrder as any).slaughterTime || ''}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-slate-500">
                         <span>{isAr ? 'حالة الدفع:' : 'Payment Status:'}</span>
                         <span
@@ -1010,19 +1233,24 @@ export const AdminOrdersView: React.FC = () => {
                         </div>
                       )}
 
+                      {orderDetails?.loyaltyDiscountAmount > 0 && (
+                        <div className="flex items-center justify-between text-amber-600 font-bold">
+                          <span>{isAr ? 'خصم نقاط الولاء:' : 'Loyalty Discount:'}</span>
+                          <span>
+                            - {orderDetails.loyaltyDiscountAmount} {isAr ? 'ر.س' : 'SAR'}
+                            {orderDetails.pointsRedeemed > 0 ? ` (${orderDetails.pointsRedeemed} ${isAr ? 'نقطة' : 'pts'})` : ''}
+                          </span>
+                        </div>
+                      )}
+
                       {orderDetails?.discountAmount > 0 && (
                         <div className="flex items-center justify-between text-rose-500">
-                          <span>{isAr ? 'خصم الكوبون / العرض:' : 'Discount:'}</span>
+                          <span>{isAr ? 'خصم الكوبون / العرض:' : 'Coupon Discount:'}</span>
                           <span>- {orderDetails.discountAmount} {isAr ? 'ر.س' : 'SAR'}</span>
                         </div>
                       )}
 
-                      {orderDetails?.deliveryFee > 0 && (
-                        <div className="flex items-center justify-between text-slate-500">
-                          <span>{isAr ? 'رسوم التوصيل:' : 'Delivery Fee:'}</span>
-                          <span>{orderDetails.deliveryFee} {isAr ? 'ر.س' : 'SAR'}</span>
-                        </div>
-                      )}
+                      {/* Delivery fee line removed completely per business requirement */}
 
                       {orderDetails?.taxAmount > 0 && (
                         <div className="flex items-center justify-between text-slate-500">
@@ -1066,10 +1294,10 @@ export const AdminOrdersView: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 flex items-center justify-between">
+            <div className="p-3.5 sm:p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] text-slate-400 font-bold block">{isAr ? 'المبلغ النهائي الصافي' : 'Final Total'}</span>
-                <span className="text-xl font-black text-brand-600 dark:text-gold-400">
+                <span className="text-lg sm:text-xl font-black text-brand-600 dark:text-gold-400">
                   {selectedOrder.total} {isAr ? 'ر.س' : 'SAR'}
                 </span>
               </div>
@@ -1080,14 +1308,14 @@ export const AdminOrdersView: React.FC = () => {
                     setInvoiceOrderId(selectedOrder.id);
                     setInvoiceModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs bg-primary-600 hover:bg-primary-700 text-white transition shadow-sm cursor-pointer"
+                  className="min-h-[44px] inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs bg-primary-600 hover:bg-primary-700 text-white transition shadow-sm cursor-pointer"
                 >
                   <Printer size={14} />
                   <span>{isAr ? 'طباعة الفاتورة' : 'Print Invoice'}</span>
                 </button>
                 <button
                   onClick={() => setSelectedOrder(null)}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 transition cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl font-bold text-xs bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 transition cursor-pointer flex items-center justify-center"
                 >
                   {isAr ? 'إغلاق' : 'Close'}
                 </button>

@@ -13,12 +13,12 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8069',
+        target: 'https://api.zbayhalmmlkh.network',
         changeOrigin: true,
         secure: false,
       },
       '/web': {
-        target: 'http://127.0.0.1:8069',
+        target: 'https://api.zbayhalmmlkh.network',
         changeOrigin: true,
         secure: false,
       },

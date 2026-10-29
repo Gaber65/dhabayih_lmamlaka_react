@@ -263,9 +263,9 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
       if (optForm.description && optForm.description.trim()) {
         payload.description = optForm.description.trim();
       }
-      // Only cutting options have extra_price in Odoo (packaging and excluded parts do not)
-      if (type === 'cutting') {
-        payload.extra_price = Number(optForm.extraPrice) || 0;
+      // Both cutting and packaging options support extra_price in backend
+      if (type === 'cutting' || type === 'packaging') {
+        payload.extra_price = Math.max(0, Number(optForm.extraPrice) || 0);
       }
 
       if (type === 'cutting') {
@@ -372,10 +372,10 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Filter & Action Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="w-5 h-5 absolute top-1/2 -translate-y-1/2 text-slate-400 ltr:left-3 rtl:right-3" />
+          <Search className="w-5 h-5 absolute top-1/2 -translate-y-1/2 text-slate-400 ltr:left-3 rtl:right-3 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
@@ -385,7 +385,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                 ? 'البحث في التصنيفات، التقطيع، التغليف، الأحجام...'
                 : 'Search categories, cuts, packaging, sizes...'
             }
-            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 ltr:pl-10 ltr:pr-4 rtl:pr-10 rtl:pl-4 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 ltr:pl-10 ltr:pr-4 rtl:pr-10 rtl:pl-4 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
 
@@ -394,7 +394,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
           <button
             onClick={loadAll}
             disabled={loading}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors shrink-0 cursor-pointer"
             title={language === 'ar' ? 'تحديث البيانات' : 'Reload'}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -408,9 +408,9 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
               else if (activeTab === 'excluded') handleOpenOptModal('excluded');
               else if (activeTab === 'sizes') handleOpenSizeModal();
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
+            className="flex-1 sm:flex-initial min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>
               {activeTab === 'categories' && (language === 'ar' ? 'إضافة قسم جديد' : 'Add Category')}
               {activeTab === 'cutting' && (language === 'ar' ? 'إضافة طريقة تقطيع' : 'Add Cutting Style')}
@@ -423,7 +423,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800 -mx-1 px-1">
         {[
           { id: 'categories', labelAr: 'أقسام المتجر', labelEn: 'Categories', count: catCount, icon: FolderTree },
           { id: 'cutting', labelAr: 'طرق التقطيع', labelEn: 'Cutting Styles', count: cutCount, icon: Scissors },
@@ -437,12 +437,12 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id as CategoryTab)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all cursor-pointer ${isSelected
-                  ? 'bg-primary-600 text-white shadow-sm'
+              className={`min-h-[44px] flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 transition-all cursor-pointer ${isSelected
+                  ? 'bg-primary-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 border border-slate-200 dark:border-slate-800'
                 }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 shrink-0" />
               <span>{language === 'ar' ? tab.labelAr : tab.labelEn}</span>
               <span
                 className={`px-2 py-0.5 rounded-full text-xs font-bold ${isSelected
@@ -459,7 +459,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       {/* Option Filter Chips (Only for cutting, packaging, excluded) */}
       {(activeTab === 'cutting' || activeTab === 'packaging' || activeTab === 'excluded') && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {[
             { id: 'all', labelAr: 'الكل', labelEn: 'All' },
             { id: 'active', labelAr: 'النشطة فقط', labelEn: 'Active Only' },
@@ -469,9 +469,9 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
             <button
               key={chip.id}
               onClick={() => setFilterMode(chip.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterMode === chip.id
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+              className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${filterMode === chip.id
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
             >
               {language === 'ar' ? chip.labelAr : chip.labelEn}
@@ -543,7 +543,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
                     <button
                       onClick={() => handleOpenCatModal(cat)}
-                      className="p-2 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-lg transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors cursor-pointer"
                       title={language === 'ar' ? 'تعديل القسم' : 'Edit'}
                     >
                       <Edit2 className="w-4 h-4" />
@@ -559,7 +559,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                           }
                         });
                       }}
-                      className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                       title={language === 'ar' ? 'حذف القسم' : 'Delete'}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -574,7 +574,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       {/* TAB 2, 3, 4: Options Cards (Cutting, Packaging, Excluded) */}
       {!loading && !error && (activeTab === 'cutting' || activeTab === 'packaging' || activeTab === 'excluded') && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {(activeTab === 'cutting' ? filteredCuts : activeTab === 'packaging' ? filteredPacks : filteredExcls).map((opt) => {
             const optType = activeTab as 'cutting' | 'packaging' | 'excluded';
             return (
@@ -585,7 +585,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600">
+                      <div className="p-2.5 rounded-xl bg-primary-50 dark:bg-primary-950/40 text-primary-600 shrink-0">
                         {activeTab === 'cutting' && <Scissors className="w-5 h-5" />}
                         {activeTab === 'packaging' && <Package className="w-5 h-5" />}
                         {activeTab === 'excluded' && <Ban className="w-5 h-5" />}
@@ -603,11 +603,11 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
                     <button
                       onClick={() => handleToggleOptActive(optType, opt)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${opt.isActive ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-700'
+                      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors cursor-pointer ${opt.isActive ? 'bg-primary-600' : 'bg-slate-300 dark:bg-slate-700'
                         }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${opt.isActive ? (isRTL ? '-translate-x-6' : 'translate-x-6') : (isRTL ? '-translate-x-1' : 'translate-x-1')
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${opt.isActive ? (isRTL ? '-translate-x-6' : 'translate-x-6') : (isRTL ? '-translate-x-1' : 'translate-x-1')
                           }`}
                       />
                     </button>
@@ -630,7 +630,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenOptModal(optType, opt)}
-                      className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-lg transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors cursor-pointer"
                       title={language === 'ar' ? 'تعديل' : 'Edit'}
                     >
                       <Edit2 className="w-4 h-4" />
@@ -648,7 +648,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                           }
                         });
                       }}
-                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                       title={language === 'ar' ? 'حذف' : 'Delete'}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -663,7 +663,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       {/* TAB 5: Carcass Sizes View */}
       {!loading && !error && activeTab === 'sizes' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
           {filteredSizes.map((sz) => (
             <div
               key={sz.id}
@@ -672,7 +672,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600">
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 shrink-0">
                       <Scale className="w-5 h-5" />
                     </div>
                     <div>
@@ -690,7 +690,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                     </div>
                   </div>
 
-                  <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                  <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm shrink-0">
                     {sz.price} {language === 'ar' ? 'ر.س' : 'SAR'}
                   </span>
                 </div>
@@ -709,7 +709,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-1">
                 <button
                   onClick={() => handleOpenSizeModal(sz)}
-                  className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-lg transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors cursor-pointer"
                   title={language === 'ar' ? 'تعديل' : 'Edit'}
                 >
                   <Edit2 className="w-4 h-4" />
@@ -725,7 +725,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                       }
                     });
                   }}
-                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                   title={language === 'ar' ? 'حذف' : 'Delete'}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -740,8 +740,8 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
       {categoryModal.open && (() => {
         const categoryProducts = categoryModal.data ? products.filter(p => p.category_id === categoryModal.data!.id) : [];
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-2xl w-full shadow-2xl flex flex-col max-h-[92vh]">
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -847,7 +847,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                           value={catForm.name}
                           onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
                           placeholder={language === 'ar' ? 'مثال: ذبائح النعيمي والنجدي' : 'e.g. Naemi & Najdi'}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                         />
                       </div>
 
@@ -860,7 +860,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                           value={catForm.nameEn}
                           onChange={(e) => setCatForm({ ...catForm, nameEn: e.target.value })}
                           placeholder="e.g. Naemi & Najdi Sheep"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium"
                         />
                       </div>
                     </div>
@@ -875,12 +875,12 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                           type="number"
                           value={catForm.sequence}
                           onChange={(e) => setCatForm({ ...catForm, sequence: parseInt(e.target.value) || 10 })}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
+                          className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
                         />
                       </div>
 
-                      <div className="pt-4">
-                        <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                      <div className="pt-1 sm:pt-4">
+                        <label className="min-h-[44px] flex items-center gap-2.5 cursor-pointer p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                           <input
                             type="checkbox"
                             checked={catForm.active}
@@ -937,8 +937,8 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                         {language === 'ar' ? 'لا توجد منتجات مسجلة في هذا القسم حالياً' : 'No products found in this category'}
                       </div>
                     ) : (
-                      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
-                        <table className="w-full text-start text-xs">
+                      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto shadow-xs">
+                        <table className="w-full text-start text-xs min-w-[480px]">
                           <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold">
                             <tr>
                               <th className="py-2.5 px-3 text-start">{language === 'ar' ? 'اسم المنتج' : 'Name'}</th>
@@ -980,18 +980,18 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                 )}
 
                 {/* Footer Buttons */}
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setCategoryModal({ open: false, data: null })}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-center"
                   >
                     {language === 'ar' ? 'إلغاء' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer transition"
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer transition"
                   >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                     <span>
@@ -1009,12 +1009,12 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       {/* Option Add/Edit Modal (Cutting / Packaging / Excluded) */}
       {optionModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              {optionModal.type === 'packaging' && <Package className="w-5 h-5 text-primary-600" />}
-              {optionModal.type === 'cutting' && <Scissors className="w-5 h-5 text-primary-600" />}
-              {optionModal.type === 'excluded' && <Ban className="w-5 h-5 text-primary-600" />}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              {optionModal.type === 'packaging' && <Package className="w-5 h-5 text-primary-600 shrink-0" />}
+              {optionModal.type === 'cutting' && <Scissors className="w-5 h-5 text-primary-600 shrink-0" />}
+              {optionModal.type === 'excluded' && <Ban className="w-5 h-5 text-primary-600 shrink-0" />}
               <span>
                 {optionModal.data
                   ? (language === 'ar'
@@ -1037,12 +1037,12 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   value={optForm.name}
                   onChange={(e) => setOptForm({ ...optForm, name: e.target.value })}
                   placeholder={language === 'ar' ? (optionModal.type === 'packaging' ? 'مثال: أطباق فوم مغلفة بالسلوفان' : 'اسم الخيار...') : 'Option name...'}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-semibold"
                 />
               </div>
 
-              {/* Extra Price is only applicable to cutting in Odoo */}
-              {optionModal.type === 'cutting' && (
+              {/* Extra Price for cutting and packaging options */}
+              {(optionModal.type === 'cutting' || optionModal.type === 'packaging') && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ar' ? 'الرسوم الإضافية (ر.س)' : 'Extra Price (SAR)'}
@@ -1053,7 +1053,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                     step="any"
                     value={optForm.extraPrice}
                     onChange={(e) => setOptForm({ ...optForm, extraPrice: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
                   />
                 </div>
               )}
@@ -1071,7 +1071,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <input
                   type="checkbox"
                   id="optActive"
@@ -1084,18 +1084,18 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setOptionModal({ open: false, type: 'cutting', data: null })}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-center"
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer transition"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer transition"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>
@@ -1112,10 +1112,10 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       {/* Carcass Size Add/Edit Modal */}
       {sizeModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <Scale className="w-5 h-5 text-amber-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <Scale className="w-5 h-5 text-amber-600 shrink-0" />
               <span>
                 {sizeModal.data
                   ? (language === 'ar' ? 'تعديل حجم الذبيحة' : 'Edit Carcass Size')
@@ -1132,7 +1132,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   required
                   value={sizeForm.productId}
                   onChange={(e) => setSizeForm({ ...sizeForm, productId: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value={0}>{language === 'ar' ? '-- اختر الذبيحة --' : '-- Select Product --'}</option>
                   {products.map((p) => (
@@ -1152,11 +1152,11 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   required
                   value={sizeForm.name}
                   onChange={(e) => setSizeForm({ ...sizeForm, name: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     {language === 'ar' ? 'السعر (ر.س) *' : 'Price (SAR) *'}
@@ -1168,7 +1168,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                     required
                     value={sizeForm.price}
                     onChange={(e) => setSizeForm({ ...sizeForm, price: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono font-bold"
                   />
                 </div>
 
@@ -1181,7 +1181,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                     min="0"
                     value={sizeForm.calories}
                     onChange={(e) => setSizeForm({ ...sizeForm, calories: parseInt(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
                   />
                 </div>
               </div>
@@ -1195,11 +1195,11 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   placeholder={language === 'ar' ? 'مثال: من 15 إلى 18 كجم صافي' : 'e.g. 15 to 18 kg'}
                   value={sizeForm.subTitle}
                   onChange={(e) => setSizeForm({ ...sizeForm, subTitle: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <input
                   type="checkbox"
                   id="sizeDefault"
@@ -1207,23 +1207,23 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   onChange={(e) => setSizeForm({ ...sizeForm, isDefault: e.target.checked })}
                   className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
                 />
-                <label htmlFor="sizeDefault" className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <label htmlFor="sizeDefault" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
                   {language === 'ar' ? 'تعيين كحجم افتراضي عند فتح الذبيحة' : 'Set as default size'}
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setSizeModal({ open: false, data: null })}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-center"
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center gap-2"
+                  className="min-h-[44px] px-5 py-2 rounded-xl text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{language === 'ar' ? 'حفظ الحجم' : 'Save'}</span>
@@ -1236,8 +1236,8 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       {/* Confirmation Delete Dialog */}
       {deleteDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl text-center">
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 flex items-center justify-center mx-auto mb-4">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -1249,10 +1249,10 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                 ? `هل أنت متأكد من رغبتك في حذف "${deleteDialog.title}"؟ لا يمكن التراجع عن هذا الإجراء.`
                 : `Are you sure you want to delete "${deleteDialog.title}"? This action cannot be undone.`}
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3">
               <button
                 onClick={() => setDeleteDialog({ open: false, title: '', onConfirm: async () => { } })}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-center"
               >
                 {language === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
@@ -1266,7 +1266,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                     setDeleteDialog({ open: false, title: '', onConfirm: async () => { } });
                   }
                 }}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                className="min-h-[44px] px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm transition cursor-pointer text-center"
               >
                 {language === 'ar' ? 'نعم، حذف' : 'Delete'}
               </button>

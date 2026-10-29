@@ -56,6 +56,7 @@ export const CartoonFooter: React.FC = () => {
               <li><Link to="/orders" className="hover:text-white transition">{t('track_orders', 'تتبع الطلب')}</Link></li>
               <li><Link to="/profile" className="hover:text-white transition">{t('profile', 'الملف الشخصي')}</Link></li>
               <li><Link to="/addresses" className="hover:text-white transition">{t('address_book', 'دفتر العناوين')}</Link></li>
+              <li><a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-brand-400 font-semibold transition">{t('privacy_policy', 'سياسة الخصوصية والشروط')}</a></li>
             </ul>
           </div>
 
@@ -93,8 +94,16 @@ export const CartoonFooter: React.FC = () => {
 
         {/* Bottom Bar: Copyright & Payment Badges */}
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400 text-[11px] text-center sm:text-start">
-          <div>
-            © {new Date().getFullYear()} {t('app_name', 'ذبائح المملكة')}. {t('all_rights_reserved', 'جميع الحقوق محفوظة.')}
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1">
+            <span>© {new Date().getFullYear()} {t('app_name', 'ذبائح المملكة')}. {t('all_rights_reserved', 'جميع الحقوق محفوظة.')}</span>
+            <span className="text-slate-600 hidden sm:inline">•</span>
+            <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-white underline underline-offset-2 transition">
+              {t('privacy_policy', 'سياسة الخصوصية')}
+            </a>
+            <span className="text-slate-600">•</span>
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-white underline underline-offset-2 transition">
+              {t('terms_of_service', 'شروط الاستخدام')}
+            </a>
           </div>
 
           <div className="flex items-center gap-2 font-bold text-slate-300">

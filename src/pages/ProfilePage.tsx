@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, Globe, LogOut, MapPin, Sparkles, Coins } from 'lucide-react';
+import { User, Globe, LogOut, MapPin, Sparkles, Coins, ShieldCheck } from 'lucide-react';
 import { profileApi } from '../api/profile';
 import { UserProfile } from '../types/profile.types';
 import { useAuthStore } from '../store/useAuthStore';
@@ -185,6 +185,19 @@ export const ProfilePage: React.FC = () => {
               <span className="text-xs font-black text-brand-600">
                 {language === 'ar' ? 'English' : 'العربية'}
               </span>
+            </button>
+
+            <button
+              onClick={() => navigate('/privacy-policy')}
+              className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer text-start"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                <span className="text-xs md:text-sm font-black text-slate-900">
+                  {isRtl ? 'الخصوصية والشروط والأحكام' : 'Privacy & Terms'}
+                </span>
+              </div>
+              <span className="text-slate-400 text-xs font-bold rtl:rotate-180">→</span>
             </button>
           </div>
         </div>
