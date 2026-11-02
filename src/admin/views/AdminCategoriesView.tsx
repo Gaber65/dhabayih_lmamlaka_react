@@ -18,10 +18,15 @@ import {
   Sparkles,
   Layers,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpToLine
 } from 'lucide-react';
 import { adminApi, AdminOptionEntity, AdminSizeEntity, Category, Product } from '../api/adminApi';
 import { useLanguageStore } from '../../store/useLanguageStore';
+import { useUIStore } from '../../store/useUIStore';
+import { extractErrorMessage } from '../../utils/errorHelper';
 import { AdminTab } from '../components/AdminSidebar';
 
 type CategoryTab = 'categories' | 'cutting' | 'packaging' | 'excluded' | 'sizes';
@@ -38,6 +43,7 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
   onNavigateSubTab,
 }) => {
   const { language, isRTL } = useLanguageStore();
+  const { addToast } = useUIStore();
   const [activeTab, setActiveTab] = useState<CategoryTab>(initialTab);
 
   useEffect(() => {
@@ -62,6 +68,26 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
   // Data states
   const [categories, setCategories] = useState<Category[]>([]);
+  const handleReorderCategory = async (catId: number, direction: 'up' | 'down' | 'first') => {
+    try {
+      const idx = categories.findIndex((c) => c.id === catId);
+      if (idx === -1) return;
+      if (direction === 'first') {
+        await adminApi.reorderCategory(catId, 'first');
+      } else if (direction === 'up') {
+        if (idx === 0) return;
+        await adminApi.reorderCategory(catId, idx);
+      } else if (direction === 'down') {
+        if (idx === categories.length - 1) return;
+        await adminApi.reorderCategory(catId, idx + 2);
+      }
+      addToast({ type: 'success', message: language === 'ar' ? 'تم تحديث ترتيب القسم بنجاح' : 'Category order updated' });
+      await loadAll();
+    } catch (err: any) {
+      addToast({ type: 'error', message: extractErrorMessage(err, language === 'ar' ? 'فشل إعادة ترتيب القسم' : 'Failed to reorder category') });
+    }
+  };
+
   const [products, setProducts] = useState<Product[]>([]);
   const [cuttingOptions, setCuttingOptions] = useState<AdminOptionEntity[]>([]);
   const [packagingOptions, setPackagingOptions] = useState<AdminOptionEntity[]>([]);
@@ -219,19 +245,25 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
 
       if (categoryModal.data) {
         await adminApi.updateCategory(categoryModal.data.id, payload);
+        addToast({
+          type: 'success',
+          message: language === 'ar' ? 'تم تحديث القسم بنجاح' : 'Category updated successfully',
+        });
       } else {
         await adminApi.createCategory(payload);
+        addToast({
+          type: 'success',
+          message: language === 'ar' ? 'تم إنشاء القسم بنجاح' : 'Category created successfully',
+        });
       }
       setCategoryModal({ open: false, data: null });
       setNewCatImageBase64(null);
       await loadAll();
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        (language === 'ar' ? 'فشل حفظ القسم' : 'Failed to save category');
-      alert(errorMsg);
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, language === 'ar' ? 'فشل حفظ القسم' : 'Failed to save category'),
+      });
     } finally {
       setSaving(false);
     }
@@ -278,15 +310,17 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
         if (id) await adminApi.updateExcludedPart(id, payload);
         else await adminApi.createExcludedPart(payload);
       }
+      addToast({
+        type: 'success',
+        message: language === 'ar' ? 'تم حفظ الخيار بنجاح' : 'Option saved successfully',
+      });
       setOptionModal({ open: false, type: 'cutting', data: null });
       await loadAll();
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        (language === 'ar' ? 'فشل حفظ الخيار' : 'Failed to save option');
-      alert(errorMsg);
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, language === 'ar' ? 'فشل حفظ الخيار' : 'Failed to save option'),
+      });
     } finally {
       setSaving(false);
     }
@@ -301,14 +335,16 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
       if (type === 'cutting') await adminApi.updateCuttingOption(opt.id, payload);
       else if (type === 'packaging') await adminApi.updatePackaging(opt.id, payload);
       else await adminApi.updateExcludedPart(opt.id, payload);
+      addToast({
+        type: 'success',
+        message: language === 'ar' ? 'تم تعديل الحالة بنجاح' : 'Status updated successfully',
+      });
       await loadAll();
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        (language === 'ar' ? 'فشل تعديل حالة الخيار' : 'Failed to toggle status');
-      alert(errorMsg);
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, language === 'ar' ? 'فشل تعديل حالة الخيار' : 'Failed to toggle status'),
+      });
     }
   };
 
@@ -333,7 +369,10 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
   const handleSaveSize = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sizeForm.name.trim() || !sizeForm.productId) {
-      alert(language === 'ar' ? 'يرجى إدخال اسم الحجم وتحديد الذبيحة' : 'Please provide size name and product');
+      addToast({
+        type: 'error',
+        message: language === 'ar' ? 'يرجى إدخال اسم الحجم وتحديد الذبيحة' : 'Please provide size name and product',
+      });
       return;
     }
     setSaving(true);
@@ -354,16 +393,17 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
       } else {
         await adminApi.createSize(payload);
       }
+      addToast({
+        type: 'success',
+        message: language === 'ar' ? 'تم حفظ الحجم بنجاح' : 'Size saved successfully',
+      });
       setSizeModal({ open: false, data: null });
       await loadAll();
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.errors?.[0]?.message ||
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        (language === 'ar' ? 'فشل حفظ حجم الذبيحة' : 'Failed to save carcass size');
-      alert(errorMsg);
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, language === 'ar' ? 'فشل حفظ حجم الذبيحة' : 'Failed to save carcass size'),
+      });
     } finally {
       setSaving(false);
     }
@@ -541,6 +581,31 @@ export const AdminCategoriesView: React.FC<AdminCategoriesViewProps> = ({
                   </div>
 
                   <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center gap-1 ltr:mr-auto rtl:ml-auto">
+                      <button
+                        onClick={() => handleReorderCategory(cat.id, 'up')}
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title={language === 'ar' ? 'تقديم للأعلى' : 'Move Up'}
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleReorderCategory(cat.id, 'down')}
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title={language === 'ar' ? 'تأخير للأسفل' : 'Move Down'}
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleReorderCategory(cat.id, 'first')}
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title={language === 'ar' ? 'تعيين كأول تصنيف' : 'Make First'}
+                      >
+                        <ArrowUpToLine className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => handleOpenCatModal(cat)}
                       className="min-w-[44px] min-h-[44px] flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded-xl transition-colors cursor-pointer"

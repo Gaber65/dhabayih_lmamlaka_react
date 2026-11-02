@@ -28,10 +28,14 @@ import {
   TrendingUp,
   Clock,
   Check,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpToLine,
 } from 'lucide-react';
 import { adminApi } from '../api/adminApi';
 import { useLanguageStore } from '../../store/useLanguageStore';
 import { useUIStore } from '../../store/useUIStore';
+import { extractErrorMessage } from '../../utils/errorHelper';
 
 export const AdminProductsView: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -47,6 +51,37 @@ export const AdminProductsView: React.FC = () => {
   // Quick Stock
   const [editingStockProduct, setEditingStockProduct] = useState<any | null>(null);
   const [newStockQty, setNewStockQty] = useState<number>(0);
+  const handleReorderProduct = async (prod: any, direction: 'up' | 'down' | 'first') => {
+    try {
+      const catId = typeof prod.category_id === 'object' ? prod.category_id?.id : prod.category_id;
+      if (!catId) {
+        addToast({ type: 'info', message: isAr ? 'لا يمكن ترتيب منتج بدون قسم' : 'Cannot reorder product without category' });
+        return;
+      }
+      // Products in the same category
+      const catProds = products.filter((p) => {
+        const pCatId = typeof p.category_id === 'object' ? p.category_id?.id : p.category_id;
+        return pCatId === catId;
+      });
+      const idx = catProds.findIndex((p) => p.id === prod.id);
+      if (idx === -1) return;
+
+      if (direction === 'first') {
+        await adminApi.reorderProduct(prod.id, catId, 'first');
+      } else if (direction === 'up') {
+        if (idx === 0) return;
+        await adminApi.reorderProduct(prod.id, catId, idx);
+      } else if (direction === 'down') {
+        if (idx === catProds.length - 1) return;
+        await adminApi.reorderProduct(prod.id, catId, idx + 2);
+      }
+      addToast({ type: 'success', message: isAr ? 'تم تحديث ترتيب المنتج بنجاح' : 'Product order updated' });
+      await loadData();
+    } catch (err: any) {
+      addToast({ type: 'error', message: extractErrorMessage(err, isAr ? 'فشل إعادة ترتيب المنتج' : 'Failed to reorder product') });
+    }
+  };
+
   
   // Add / Edit Product Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -84,6 +119,7 @@ export const AdminProductsView: React.FC = () => {
   const [formActive, setFormActive] = useState(true);
   const [formImageBase64, setFormImageBase64] = useState<string>('');
   const [formImagePreview, setFormImagePreview] = useState<string>('');
+  const [removeMainImage, setRemoveMainImage] = useState<boolean>(false);
   const [formSizes, setFormSizes] = useState<Array<{
     id?: number;
     portion_type: 'full' | 'half' | 'quarter';
@@ -167,6 +203,7 @@ export const AdminProductsView: React.FC = () => {
     setFormSelectedExcludedPartIds(excludedParts.map((e) => e.id));
     setFormImageBase64('');
     setFormImagePreview('');
+    setRemoveMainImage(false);
     setFormSizes([]);
     setDeletedSizeIds([]);
     setProductModalOpen(true);
@@ -188,12 +225,15 @@ export const AdminProductsView: React.FC = () => {
     setFormPreparationTime(Number(p.preparation_time || 30));
     setFormIsFeatured(Boolean(p.is_featured));
     setFormIsBestSeller(Boolean(p.is_best_seller));
-    setFormIsOnOffer(Boolean(p.is_on_offer));
+    const onOffer = Boolean(p.is_on_offer);
+    setFormIsOnOffer(onOffer);
     setFormDiscountType(p.discount_type || 'percentage');
-    setFormDiscountValue(Number(p.discount_value || 0));
-    setFormOfferPrice(Number(p.offer_price || 0));
-    setFormOfferStartDate(p.offer_start_date || '');
-    setFormOfferEndDate(p.offer_end_date || '');
+    setFormDiscountValue(onOffer ? Number(p.discount_value || 0) : 0);
+    setFormOfferPrice(onOffer ? Number(p.offer_price || 0) : 0);
+    const sDate = p.offer_start_date ? String(p.offer_start_date).slice(0, 10) : '';
+    const eDate = p.offer_end_date ? String(p.offer_end_date).slice(0, 10) : '';
+    setFormOfferStartDate(onOffer ? sDate : '');
+    setFormOfferEndDate(onOffer ? eDate : '');
     setFormIsAvailable(p.is_available !== false);
     setFormDescription(p.description || '');
     setFormIsCarcass(p.is_carcass !== false);
@@ -226,6 +266,7 @@ export const AdminProductsView: React.FC = () => {
 
     setFormImageBase64('');
     setFormImagePreview(p.image || p.imageUrl || p.main_image_url || '');
+    setRemoveMainImage(false);
     setProductModalOpen(true);
   };
 
@@ -259,35 +300,48 @@ export const AdminProductsView: React.FC = () => {
       const payload: any = {
         name: formName.trim(),
         sku: formSku.trim(),
-        barcode: formBarcode.trim() || undefined,
-        category_id: formCategoryId || undefined,
-        selling_price: formSellingPrice,
-        price: formSellingPrice,
-        purchase_price: formPurchasePrice,
-        stock_quantity: formStock,
-        minimum_stock: formMinStock,
-        weight: formWeight,
-        preparation_time: formPreparationTime,
-        is_featured: formIsFeatured,
-        is_best_seller: formIsBestSeller,
-        is_on_offer: formIsOnOffer,
+        barcode: formBarcode.trim(),
+        category_id: formCategoryId ? Number(formCategoryId) : undefined,
+        selling_price: Number(formSellingPrice || 0),
+        price: Number(formSellingPrice || 0),
+        purchase_price: Number(formPurchasePrice || 0),
+        stock_quantity: Number(formStock || 0),
+        minimum_stock: Number(formMinStock || 0),
+        weight: Number(formWeight || 0),
+        preparation_time: Number(formPreparationTime || 30),
+        is_featured: Boolean(formIsFeatured),
+        is_best_seller: Boolean(formIsBestSeller),
+        is_on_offer: Boolean(formIsOnOffer),
         discount_type: formDiscountType,
-        discount_value: formDiscountValue,
-        offer_price: formIsOnOffer && formOfferPrice > 0 ? formOfferPrice : undefined,
-        offer_start_date: formOfferStartDate || undefined,
-        offer_end_date: formOfferEndDate || undefined,
-        is_available: formIsAvailable,
-        cutting_option_ids: formSelectedCuttingIds,
-        packaging_ids: formSelectedPackagingIds,
-        excluded_part_ids: formSelectedExcludedPartIds,
+        discount_value: formIsOnOffer ? Number(formDiscountValue || 0) : 0,
+        offer_price: formIsOnOffer && formOfferPrice > 0 ? Number(formOfferPrice) : undefined,
+        offer_start_date: formIsOnOffer && formOfferStartDate ? formOfferStartDate : undefined,
+        offer_end_date: formIsOnOffer && formOfferEndDate ? formOfferEndDate : undefined,
+        is_available: Boolean(formIsAvailable),
+        cutting_option_ids: formSelectedCuttingIds.map((id) => Number(id)),
+        packaging_ids: formSelectedPackagingIds.map((id) => Number(id)),
+        excluded_part_ids: formSelectedExcludedPartIds.map((id) => Number(id)),
         description: formDescription.trim(),
-        is_carcass: formIsCarcass,
-        active: formActive,
-        sizes: formSizes,
+        is_carcass: Boolean(formIsCarcass),
+        active: Boolean(formActive),
+        sizes: formSizes.map((s) => ({
+          ...(s.id ? { id: s.id } : {}),
+          portion_type: s.portion_type,
+          name: s.name.trim(),
+          weight_range: s.weight_range.trim(),
+          price: Number(s.price || 0),
+          calories: Number(s.calories || 243),
+          sub_title: s.sub_title.trim(),
+          is_default: Boolean(s.is_default),
+          active: s.active !== false,
+        })),
       };
 
       if (formImageBase64) {
         payload.main_image = formImageBase64;
+      } else if (removeMainImage) {
+        payload.remove_main_image = true;
+        payload.main_image = false;
       }
 
       if (editingProduct) {
@@ -309,7 +363,7 @@ export const AdminProductsView: React.FC = () => {
     } catch (err: any) {
       addToast({
         type: 'error',
-        message: err?.message || (isAr ? 'فشل حفظ بيانات المنتج' : 'Failed to save product'),
+        message: extractErrorMessage(err, isAr ? 'فشل حفظ بيانات المنتج' : 'Failed to save product'),
       });
     } finally {
       setSavingProduct(false);
@@ -327,8 +381,11 @@ export const AdminProductsView: React.FC = () => {
       });
       setDeleteProductDialog(null);
       setProducts((prev) => prev.filter((p) => p.id !== deleteProductDialog.id));
-    } catch {
-      addToast({ type: 'error', message: isAr ? 'فشل حذف المنتج من الخادم' : 'Failed to delete product' });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, isAr ? 'فشل حذف المنتج من الخادم' : 'Failed to delete product'),
+      });
     } finally {
       setDeletingProduct(false);
     }
@@ -725,7 +782,33 @@ export const AdminProductsView: React.FC = () => {
                   </div>
 
                   {/* Actions Row */}
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleReorderProduct(p, 'up')}
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title={isAr ? 'تقديم للأعلى' : 'Move Up'}
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleReorderProduct(p, 'down')}
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title={isAr ? 'تأخير للأسفل' : 'Move Down'}
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleReorderProduct(p, 'first')}
+                        className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title={isAr ? 'تعيين كأول منتج' : 'Make First'}
+                      >
+                        <ArrowUpToLine className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleToggleActive(p)}
                       className="min-h-[44px] px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
@@ -749,6 +832,7 @@ export const AdminProductsView: React.FC = () => {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -762,6 +846,7 @@ export const AdminProductsView: React.FC = () => {
             <table className="w-full text-start text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <tr>
+                  <th className="py-3 px-3 text-center w-24">{isAr ? 'الترتيب' : 'Order'}</th>
                   <th className="py-3 px-4 text-start">{isAr ? 'المنتج / الذبيحة' : 'Product'}</th>
                   <th className="py-3 px-4 text-start">{isAr ? 'التصنيف' : 'Category'}</th>
                   <th className="py-3 px-4 text-start">{isAr ? 'السعر الأساسي' : 'Base Price'}</th>
@@ -774,14 +859,14 @@ export const AdminProductsView: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-xs font-bold text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-xs font-bold text-slate-400">
                       <RefreshCw className="w-5 h-5 mx-auto animate-spin mb-2 text-primary-600" />
                       {isAr ? 'جارٍ تحميل قائمة المنتجات من خادم Odoo...' : 'Loading products from Odoo ERP...'}
                     </td>
                   </tr>
                 ) : paginatedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-xs font-bold text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-xs font-bold text-slate-400">
                       <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
                       {isAr ? 'لا توجد منتجات تطابق معايير البحث الحالية' : 'No products match search criteria'}
                     </td>
@@ -799,6 +884,32 @@ export const AdminProductsView: React.FC = () => {
 
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-2 text-center">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button
+                              onClick={() => handleReorderProduct(p, 'up')}
+                              className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title={isAr ? 'تقديم للأعلى' : 'Move Up'}
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleReorderProduct(p, 'down')}
+                              className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title={isAr ? 'تأخير للأسفل' : 'Move Down'}
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleReorderProduct(p, 'first')}
+                              className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title={isAr ? 'تعيين كأول منتج في هذا القسم' : 'Make First'}
+                            >
+                              <ArrowUpToLine className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center">
@@ -1109,7 +1220,7 @@ export const AdminProductsView: React.FC = () => {
                               type="text"
                               value={formBarcode}
                               onChange={(e) => setFormBarcode(e.target.value)}
-                              placeholder="6281000123456"
+                              placeholder={isAr ? "اختياري" : "Optional"}
                               className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary-500 font-mono font-bold"
                             />
                           </div>
@@ -1443,6 +1554,7 @@ export const AdminProductsView: React.FC = () => {
                               onClick={() => {
                                 setFormImageBase64('');
                                 setFormImagePreview('');
+                                setRemoveMainImage(true);
                               }}
                               className="text-xs font-bold text-rose-500 hover:underline inline-block pt-1 cursor-pointer"
                             >

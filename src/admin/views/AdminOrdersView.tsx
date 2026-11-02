@@ -40,6 +40,8 @@ import {
 } from 'lucide-react';
 import { adminApi, AdminOrder } from '../api/adminApi';
 import { useLanguageStore } from '../../store/useLanguageStore';
+import { useUIStore } from '../../store/useUIStore';
+import { extractErrorMessage } from '../../utils/errorHelper';
 import { useAdminNotificationStore } from '../store/useAdminNotificationStore';
 import { InvoiceModal } from '../../components/order/InvoiceModal';
 
@@ -48,6 +50,7 @@ type ViewMode = 'board' | 'table';
 
 export const AdminOrdersView: React.FC = () => {
   const { language, isRTL } = useLanguageStore();
+  const { addToast } = useUIStore();
   const isAr = language === 'ar';
 
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -186,8 +189,15 @@ export const AdminOrdersView: React.FC = () => {
         setSelectedOrder((prev) => (prev ? { ...prev, state: newStatus } : null));
         setOrderDetails((prev: any) => (prev ? { ...prev, state: newStatus } : null));
       }
+      addToast({
+        type: 'success',
+        message: isAr ? 'تم تحديث حالة الطلب بنجاح' : 'Order status updated successfully',
+      });
     } catch (err: any) {
-      alert(err?.message || 'Failed to update order status');
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, isAr ? 'فشل تحديث حالة الطلب' : 'Failed to update order status'),
+      });
     } finally {
       setUpdatingId(null);
     }

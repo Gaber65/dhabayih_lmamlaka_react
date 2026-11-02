@@ -452,6 +452,7 @@ export const adminApi = {
           name_ar: p.name_ar || p.name || '',
           name_en: p.name_en || '',
           sku: p.sku || `PRD-${p.id}`,
+          barcode: p.barcode || "",
           category_id: p.category_id?.id || p.category_id || p.categ_id,
           categoryName: p.category_name || (typeof p.category_id === 'object' ? p.category_id?.name : ''),
           price: Number(p.selling_price || p.price || p.list_price || 0),
@@ -459,16 +460,23 @@ export const adminApi = {
           purchase_price: Number(p.purchase_price || 0),
           stock_quantity: Number(p.stock_quantity ?? p.qty_available ?? 0),
           minimum_stock: Number(p.minimum_stock ?? 5),
+          sequence: Number(p.sequence || 10),
           weight: Number(p.weight || 15),
           preparation_time: Number(p.preparation_time || 30),
           is_active: p.is_active !== false && p.active !== false,
           active: p.is_active !== false && p.active !== false,
           image: p.main_image || p.main_image_url || p.image_url || p.image_1920 || p.image || '',
+          main_image: p.main_image || p.main_image_url || p.image_url || "",
           description: p.description || p.description_ar || '',
           is_on_offer: Boolean(p.is_on_offer || p.is_offer || p.offer_price),
+          discount_type: p.discount_type || "percentage",
+          discount_value: Number(p.discount_value || 0),
+          offer_start_date: p.offer_start_date || "",
+          offer_end_date: p.offer_end_date || "",
           offer_price: p.offer_price ? Number(p.offer_price) : undefined,
           is_featured: Boolean(p.is_featured),
           is_best_seller: Boolean(p.is_best_seller),
+          is_available: p.is_available !== false,
           is_carcass: p.is_carcass !== false,
           cutting_options: Array.isArray(p.cutting_options) ? p.cutting_options : [],
           packaging_options: Array.isArray(p.packaging_options) ? p.packaging_options : [],
@@ -504,6 +512,15 @@ export const adminApi = {
 
   toggleProductActive: async (id: number) => {
     const res = await apiClient.post(`/api/v1/products/${id}/toggle-active`);
+    return res.data?.data || res.data;
+  },
+
+  reorderProduct: async (productId: number, categoryId: number, position: 'first' | 'last' | number) => {
+    const res = await apiClient.post('/api/v1/products/reorder', {
+      product_id: productId,
+      category_id: categoryId,
+      position,
+    });
     return res.data?.data || res.data;
   },
 
@@ -563,6 +580,14 @@ export const adminApi = {
       const res = await apiClient.delete(`/api/v1/categories/${id}`);
       return res.data;
     }
+  },
+
+  reorderCategory: async (categoryId: number, position: 'first' | 'last' | number) => {
+    const res = await apiClient.post('/api/v1/categories/reorder', {
+      category_id: categoryId,
+      position,
+    });
+    return res.data?.data || res.data;
   },
 
   // 4. Preparation Options

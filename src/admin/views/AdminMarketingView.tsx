@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { adminApi, Offer, AdminBanner, AdminCoupon, Product, normalizeImageUrl } from '../api/adminApi';
 import { useLanguageStore } from '../../store/useLanguageStore';
+import { useUIStore } from '../../store/useUIStore';
+import { extractErrorMessage } from '../../utils/errorHelper';
 
 type MarketingTab = 'offers' | 'banners' | 'coupons' | 'notifications';
 
@@ -35,6 +37,7 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
   onNavigateSubTab,
 }) => {
   const { language, isRTL } = useLanguageStore();
+  const { addToast } = useUIStore();
   const [activeTab, setActiveTab] = useState<MarketingTab>(initialTab);
 
   useEffect(() => {
@@ -250,19 +253,24 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
 
       if (offerModal.data) {
         await adminApi.updateOffer(offerModal.data.id, payload);
+        addToast({
+          type: 'success',
+          message: language === 'ar' ? 'تم تحديث العرض بنجاح' : 'Offer updated successfully',
+        });
       } else {
         await adminApi.createOffer(payload);
+        addToast({
+          type: 'success',
+          message: language === 'ar' ? 'تم إنشاء العرض بنجاح' : 'Offer created successfully',
+        });
       }
       setOfferModal({ open: false, data: null });
       await loadData();
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.errors?.[0]?.message ||
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        (language === 'ar' ? 'فشل حفظ العرض' : 'Error saving offer');
-      alert(errorMsg);
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, language === 'ar' ? 'فشل حفظ العرض' : 'Error saving offer'),
+      });
     } finally {
       setSaving(false);
     }
@@ -389,9 +397,16 @@ export const AdminMarketingView: React.FC<AdminMarketingViewProps> = ({
       setPushSuccess(true);
       setPushTitle('');
       setPushBody('');
+      addToast({
+        type: 'success',
+        message: language === 'ar' ? 'تم إرسال الإشعار الفوري بنجاح' : 'Broadcast push sent successfully',
+      });
       setTimeout(() => setPushSuccess(false), 5000);
     } catch (err: any) {
-      alert(err?.message || 'Failed to send broadcast push');
+      addToast({
+        type: 'error',
+        message: extractErrorMessage(err, language === 'ar' ? 'فشل إرسال الإشعار الفوري' : 'Failed to send broadcast push'),
+      });
     } finally {
       setSendingPush(false);
     }
