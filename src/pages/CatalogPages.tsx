@@ -95,6 +95,29 @@ const matchPackaging = (p: Product, selectedPkgs: string[]): boolean => {
   });
 };
 
+const BBQ_SUBCATEGORIES = [
+  'الكل',
+  'مجهز للشواء',
+  'برجر طازج',
+  'مشاوي مشكلة',
+  'ستيكات فاخرة',
+  'دجاج متبل وبرجر وشاورما',
+  'كفتة وكبة لحم',
+  'شاورما لحم',
+  'مُقبلات',
+];
+
+const BBQ_SUBCATEGORY_MAP: Record<string, number[]> = {
+  'شاورما لحم': [170, 188, 192, 198, 199],
+  'مُقبلات': [171, 185, 186],
+  'كفتة وكبة لحم': [172, 179, 180, 183, 190, 194, 201],
+  'مشاوي مشكلة': [173, 175, 187, 189, 191],
+  'برجر طازج': [174, 178, 181, 182, 184],
+  'دجاج متبل وبرجر وشاورما': [176, 177, 193, 195, 196, 197, 200, 202, 203],
+  'ستيكات فاخرة': [204, 205, 206, 207, 211],
+  'مجهز للشواء': [208, 209, 210],
+};
+
 export const CategoriesPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -110,6 +133,7 @@ export const CategoriesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [selectedBbqSubCategory, setSelectedBbqSubCategory] = useState<string>('الكل');
 
   // Filters state
   const [filters, setFilters] = useState<FilterState>({
@@ -157,6 +181,16 @@ export const CategoriesPage: React.FC = () => {
   }, [searchParams]);
 
   const activeCategory = categories.find((c) => c.id === filters.categoryId);
+  const isBbqCategory = activeCategory
+    ? activeCategory.id === 34 ||
+      Boolean(activeCategory.name?.includes('مشاوي')) ||
+      Boolean(activeCategory.nameAr?.includes('مشاوي')) ||
+      Boolean(activeCategory.nameEn?.toLowerCase().includes('bbq'))
+    : false;
+
+  useEffect(() => {
+    setSelectedBbqSubCategory('الكل');
+  }, [filters.categoryId]);
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
@@ -191,6 +225,36 @@ export const CategoriesPage: React.FC = () => {
           p.categoryName?.includes(selectedCat.name)
         )) return true;
         return false;
+      });
+    }
+
+    // BBQ Subcategory Filter
+    if (isBbqCategory && selectedBbqSubCategory !== 'الكل') {
+      const subIds = BBQ_SUBCATEGORY_MAP[selectedBbqSubCategory];
+      result = result.filter((p) => {
+        if (subIds && subIds.includes(p.id)) return true;
+        const text = normalizeArabic(`${p.name || ''} ${p.nameAr || ''} ${p.description || ''}`);
+        switch (selectedBbqSubCategory) {
+          case 'ستيكات فاخرة':
+            return text.includes('ستيك');
+          case 'برجر طازج':
+            return (text.includes('برجر') || text.includes('برغر')) && !text.includes('دجاج');
+          case 'شاورما لحم':
+            return text.includes('شاورما') && !text.includes('دجاج');
+          case 'دجاج متبل وبرجر وشاورما':
+            return text.includes('دجاج');
+          case 'كفتة وكبة لحم':
+            return text.includes('كفتة') || text.includes('كبة') || text.includes('كرات لحم');
+          case 'مجهز للشواء':
+            return text.includes('مجهز للشواء');
+          case 'مشاوي مشكلة':
+            return text.includes('مشكل') || text.includes('مشاوي') || text.includes('ريش');
+          case 'مُقبلات':
+          case 'مقبلات':
+            return text.includes('متبل') || text.includes('حمص') || text.includes('طحينة') || text.includes('سلطة');
+          default:
+            return true;
+        }
       });
     }
 
@@ -234,7 +298,7 @@ export const CategoriesPage: React.FC = () => {
     }
 
     return result;
-  }, [allProducts, filters, sortBy, categories]);
+  }, [allProducts, filters, sortBy, categories, isBbqCategory, selectedBbqSubCategory]);
 
   const handleResetFilters = () => {
     setFilters({
@@ -413,7 +477,31 @@ export const CategoriesPage: React.FC = () => {
         )}
 
         {/* Products Grid & Sorting (9 Cols) */}
-        <div className="lg:col-span-9">
+        <div className="lg:col-span-9 space-y-4">
+          {/* BBQ Subcategories Filter Tabs */}
+          {isBbqCategory && (
+            <div className="bg-[#FAF7F2] border border-[#EBE4D8] rounded-2xl p-2 sm:p-2.5 shadow-xs">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {BBQ_SUBCATEGORIES.map((sub) => {
+                  const isSelected = selectedBbqSubCategory === sub;
+                  return (
+                    <button
+                      key={sub}
+                      onClick={() => setSelectedBbqSubCategory(sub)}
+                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-[#7D162B] text-white shadow-md'
+                          : 'bg-white hover:bg-[#F3EEE6] text-[#333333] border border-[#E5DDD2]'
+                      }`}
+                    >
+                      <span>{sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
